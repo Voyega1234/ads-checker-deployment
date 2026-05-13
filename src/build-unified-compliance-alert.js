@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import crypto from "node:crypto";
 import "./env.js";
 import { postSlackMessage, sleep } from "./slack.js";
 
@@ -21,7 +22,7 @@ async function main() {
   ]);
   if (accountInfo?.accountName) account.name = accountInfo.accountName;
   const metaAdByAdId = await fetchMetaAdMetaByAdId(collectAdIds(policyRows, placementResults));
-  const alert = buildUnifiedAlert({
+  const alert = await buildUnifiedAlert({
     account,
     generatedAt: placementReport.generatedAt || new Date().toISOString(),
     placementResults,
@@ -200,34 +201,45 @@ function parsePositiveInt(value, fallback) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
-function buildUnifiedAlert({ account, generatedAt, placementResults, policyRows, metaAdByAdId }) {
+async function buildUnifiedAlert({ account, generatedAt, placementResults, policyRows, metaAdByAdId }) {
   const placementByAdId = buildPlacementByAdId(placementResults);
   const adMetaByAdId = buildAdMetaByAdId(placementResults, metaAdByAdId);
   const policyByAdId = buildPolicyByAdId(policyRows);
   const allAdIds = unique([...policyByAdId.keys(), ...placementByAdId.keys()]);
   const groups = groupByCreative(allAdIds, policyByAdId, placementByAdId, adMetaByAdId);
+  applyIssueFingerprints(groups, account.id);
+  await applyResolvedIssueFingerprints(groups);
   const actionableGroups = groups.filter(
     (group) => group.policy.hasAction || group.spelling.hasAction || group.placement.hasAction
   );
+  const openGroups = actionableGroups.filter((group) => !group.resolution.resolved);
 
   const clientName =
     firstNonEmpty(policyRows.map((row) => row.client_id)) || account.name || account.id;
   const dateLabel = formatDate(generatedAt);
-  const adCount = unique(actionableGroups.flatMap((group) => group.adIds)).length;
-  const issueGroupCount = actionableGroups.length;
-  const creativeCount = countUniqueCreatives(actionableGroups);
+  const adCount = unique(openGroups.flatMap((group) => group.adIds)).length;
+  const issueGroupCount = openGroups.length;
+  const creativeCount = countUniqueCreatives(openGroups);
   const policyCreativeCount = countUniqueCreatives(
-    actionableGroups.filter((group) => group.policy.hasAction)
+    openGroups.filter((group) => group.policy.hasAction)
   );
   const spellingCreativeCount = countUniqueCreatives(
-    actionableGroups.filter((group) => group.spelling.hasAction)
+    openGroups.filter((group) => group.spelling.hasAction)
   );
   const actionablePlacementResults = placementResults.filter((result) =>
     ACTIONABLE_PLACEMENT_RISKS.has(result.analysis?.risk)
   );
-  const placementAdCount = unique(actionablePlacementResults.map((result) => result.ad?.id).filter(Boolean)).length;
+  const resolvedAdIds = new Set(openGroups.flatMap((group) => group.adIds));
+  const placementAdCount = unique(
+    actionablePlacementResults
+      .map((result) => result.ad?.id)
+      .filter((adId) => adId && resolvedAdIds.has(adId))
+  ).length;
   const placementCreativeCount = unique(
-    actionablePlacementResults.map((result) => result.ad?.creativeId).filter(Boolean)
+    actionablePlacementResults
+      .filter((result) => resolvedAdIds.has(result.ad?.id))
+      .map((result) => result.ad?.creativeId)
+      .filter(Boolean)
   ).length;
 
   return {
@@ -243,7 +255,8 @@ function buildUnifiedAlert({ account, generatedAt, placementResults, policyRows,
       spellingCreativeCount,
       placementAdCount,
       placementCreativeCount,
-      threadCount: actionableGroups.length
+      threadCount: openGroups.length,
+      resolvedIssueGroupCount: actionableGroups.length - openGroups.length
     },
     mainMessage: {
       text: `Ad Compliance Alert: ${clientName} ${account.id}`,
@@ -258,7 +271,7 @@ function buildUnifiedAlert({ account, generatedAt, placementResults, policyRows,
         spellingCreativeCount,
         placementAdCount,
         placementCreativeCount,
-        threadCount: actionableGroups.length
+        threadCount: openGroups.length
       })
     },
     threadMessages: actionableGroups.map((group) => ({
@@ -479,6 +492,67 @@ function groupByCreative(adIds, policyByAdId, placementByAdId, adMetaByAdId) {
   return Array.from(groups.values()).sort(compareGroups);
 }
 
+function applyIssueFingerprints(groups, accountId) {
+  for (const group of groups) {
+    group.issueType = getGroupIssueType(group);
+    group.issueFingerprint = buildIssueFingerprint(accountId, group);
+  }
+}
+
+async function applyResolvedIssueFingerprints(groups) {
+  const fingerprints = unique(groups.map((group) => group.issueFingerprint).filter(Boolean));
+  if (!fingerprints.length) return;
+  const resolutions = await fetchIssueResolutions(fingerprints);
+  for (const group of groups) {
+    const resolution = resolutions.get(group.issueFingerprint);
+    if (!resolution) continue;
+    group.resolution = {
+      resolved: Boolean(resolution.resolved),
+      resolvedAt: resolution.resolved_at || "",
+      resolvedBy: resolution.resolved_by || ""
+    };
+  }
+}
+
+async function fetchIssueResolutions(fingerprints) {
+  const { supabaseUrl, supabaseKey } = getSupabaseEnv();
+  const map = new Map();
+  for (const chunk of chunks(fingerprints, 80)) {
+    const query = new URL(`${supabaseUrl}/rest/v1/ad_compliance_issue_resolutions`);
+    query.searchParams.set("select", "issue_fingerprint,resolved,resolved_at,resolved_by,updated_at");
+    query.searchParams.set("issue_fingerprint", `in.(${chunk.join(",")})`);
+    query.searchParams.set("resolved", "eq.true");
+    try {
+      const rows = await fetchSupabaseJson(query, supabaseKey, "issue resolutions");
+      for (const row of rows || []) {
+        map.set(row.issue_fingerprint, row);
+      }
+    } catch (error) {
+      console.warn(`Resolved issue lookup skipped: ${error.message}`);
+      return map;
+    }
+  }
+  return map;
+}
+
+function getGroupIssueType(group) {
+  const types = [];
+  if (group.policy.hasAction) types.push("policy");
+  if (group.spelling.hasAction) types.push("spelling");
+  if (group.placement.hasAction) types.push("placement");
+  return types.length ? types.join("+") : "none";
+}
+
+function buildIssueFingerprint(accountId, group) {
+  const payload = [
+    normalizeForKey(accountId),
+    group.issueType,
+    ...unique(group.creativeIds || []).sort().map(normalizeForKey),
+    group.key
+  ].join("::");
+  return crypto.createHash("sha256").update(payload).digest("hex");
+}
+
 function buildIssueGroupKey({ policy, placements, adId, creativeId, name }) {
   if (!policy) {
     return `placement-only:${creativeId || name || adId}:${buildPlacementSignature(placements)}`;
@@ -534,7 +608,10 @@ function newEmptyGroup({ key, creativeName, creativeId, representativeAdId }) {
     revisedText: "",
     imageResult: null,
     finding: "",
-    policyRisk: "N/A"
+    policyRisk: "N/A",
+    issueType: "none",
+    issueFingerprint: "",
+    resolution: { resolved: false, resolvedAt: "", resolvedBy: "" }
   };
 }
 
@@ -856,6 +933,9 @@ function buildStructuredDetails(group) {
     .find((verification) => verification && typeof verification === "object") || null;
 
   return {
+    issueFingerprint: group.issueFingerprint,
+    issueType: group.issueType,
+    resolution: group.resolution,
     policy: {
       hasAction: group.policy.hasAction,
       risk: group.policyRisk,

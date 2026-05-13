@@ -1,10 +1,21 @@
 import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 const PORT = Number(process.env.PORT || 8080);
 const DEFAULT_VIEWER_URL = "https://report-viewer-theta.vercel.app/report-viewer";
 const VALID_MODES = new Set(["policy", "placement", "unified", "slack", "full"]);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = path.resolve(__dirname, "../..");
 
 const config = {
+  runner: (process.env.TRIGGER_RUNNER || "cloud-run").trim().toLowerCase(),
+  pythonBin: process.env.PYTHON_BIN || "python3",
+  localLogDir: process.env.TRIGGER_LOG_DIR || path.join(PROJECT_ROOT, "logs", "api-trigger"),
+  localRunDir: process.env.TRIGGER_RUN_DIR || path.join(PROJECT_ROOT, "logs", "api-trigger", "runs"),
+  maxConcurrentRuns: parsePositiveInt(process.env.MAX_CONCURRENT_RUNS, 1),
   projectId: process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || "",
   region: process.env.CLOUD_RUN_REGION || process.env.GCP_REGION || "",
   jobName: process.env.CLOUD_RUN_JOB_NAME || "",
@@ -36,7 +47,9 @@ async function route(request, response) {
     sendJson(response, 200, {
       ok: true,
       service: "ad-compliance-trigger",
-      targetJob: getJobResourceName() || null
+      runner: config.runner,
+      targetJob: getJobResourceName() || null,
+      maxConcurrentRuns: config.runner === "local" ? config.maxConcurrentRuns : null
     });
     return;
   }
@@ -51,15 +64,16 @@ async function route(request, response) {
       return;
     }
 
-    const operation = await runCloudRunJob(args);
+    const operation =
+      config.runner === "local"
+        ? await runLocalWorker(args)
+        : await runCloudRunJob(args);
     sendJson(response, 202, {
       ok: true,
-      job: getJobResourceName(),
+      runner: config.runner,
+      job: config.runner === "local" ? null : getJobResourceName(),
       args,
-      operation: {
-        name: operation.name || "",
-        done: Boolean(operation.done)
-      }
+      operation
     });
     return;
   }
@@ -167,6 +181,88 @@ async function runCloudRunJob(args) {
   return data;
 }
 
+async function runLocalWorker(args) {
+  await fs.promises.mkdir(config.localLogDir, { recursive: true });
+  await fs.promises.mkdir(config.localRunDir, { recursive: true });
+  const activeRuns = await getActiveLocalRuns();
+  if (activeRuns.length >= config.maxConcurrentRuns) {
+    const error = httpError(409, "run_already_in_progress");
+    error.details = { activeRuns };
+    throw error;
+  }
+  const runId = new Date().toISOString().replace(/[:.]/g, "-");
+  const logPath = path.join(config.localLogDir, `run-${runId}.log`);
+  const lockPath = path.join(config.localRunDir, `${runId}.json`);
+  const out = fs.openSync(logPath, "a");
+  const err = fs.openSync(logPath, "a");
+  const child = spawn(
+    config.pythonBin,
+    ["production/worker/main.py", ...args],
+    {
+      cwd: PROJECT_ROOT,
+      detached: true,
+      stdio: ["ignore", out, err],
+      env: {
+        ...process.env,
+        REPORT_VIEWER_URL: config.defaultViewerUrl
+      }
+    }
+  );
+  child.unref();
+  await writeJson(lockPath, {
+    runId,
+    pid: child.pid,
+    args,
+    logPath,
+    startedAt: new Date().toISOString()
+  });
+  return {
+    type: "local",
+    runId,
+    pid: child.pid,
+    done: false,
+    logPath,
+    lockPath
+  };
+}
+
+async function getActiveLocalRuns() {
+  const entries = await fs.promises.readdir(config.localRunDir).catch(() => []);
+  const active = [];
+  for (const entry of entries) {
+    if (!entry.endsWith(".json")) continue;
+    const lockPath = path.join(config.localRunDir, entry);
+    const run = await readJsonFile(lockPath).catch(() => null);
+    if (!run?.pid) {
+      await fs.promises.unlink(lockPath).catch(() => {});
+      continue;
+    }
+    if (isProcessAlive(run.pid)) {
+      active.push({ ...run, lockPath });
+      continue;
+    }
+    await fs.promises.unlink(lockPath).catch(() => {});
+  }
+  return active;
+}
+
+function isProcessAlive(pid) {
+  try {
+    process.kill(Number(pid), 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function readJsonFile(filePath) {
+  return JSON.parse(await fs.promises.readFile(filePath, "utf8"));
+}
+
+async function writeJson(filePath, value) {
+  await fs.promises.writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
+}
+
 function getJobResourceName() {
   if (config.jobResourceName) return config.jobResourceName.replace(/^\/+/, "");
   if (!config.projectId || !config.region || !config.jobName) return "";
@@ -196,6 +292,11 @@ function httpError(status, message) {
   const error = new Error(message);
   error.status = status;
   return error;
+}
+
+function parsePositiveInt(value, fallback) {
+  const parsed = Number.parseInt(`${value || ""}`, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 process.on("uncaughtException", (error) => {

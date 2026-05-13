@@ -597,6 +597,12 @@ async function tryGeminiValidation({ config, screenshotPath, imageBuffer, format
 }
 
 async function tryUploadScreenshot(config, fileName, buffer) {
+  if (!config.supabaseUrl || !config.supabaseServiceKey || !config.supabaseStorageBucket) {
+    console.warn(
+      "Screenshot upload skipped: missing SUPABASE_URL, SUPABASE_SERVICE_KEY, or SUPABASE_STORAGE_BUCKET"
+    );
+    return null;
+  }
   try {
     return await uploadScreenshotToSupabase({
       supabaseUrl: config.supabaseUrl,
@@ -607,6 +613,7 @@ async function tryUploadScreenshot(config, fileName, buffer) {
       buffer
     });
   } catch (error) {
+    console.warn(`Screenshot upload failed for ${fileName}: ${error.message}`);
     return { error: error.message };
   }
 }

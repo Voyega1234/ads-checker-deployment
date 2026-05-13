@@ -20,6 +20,10 @@ async function main() {
     console.log(JSON.stringify({ reportUrl }, null, 2));
     return;
   }
+  if (!Number(alert.meta?.threadCount || 0) && !args["send-empty"]) {
+    console.log(JSON.stringify({ reportUrl, skippedSlack: true, reason: "no_open_issues" }, null, 2));
+    return;
+  }
 
   const fullReportUrl = buildViewerUrl(viewerUrl, reportUrl);
   const response = await postSlackMessage({

@@ -1,4 +1,6 @@
 const TABLE_NAME = process.env.AD_COMPLIANCE_STATE_TABLE || "ad_compliance_issue_states";
+const RESOLUTION_TABLE_NAME =
+  process.env.AD_COMPLIANCE_RESOLUTION_TABLE || "ad_compliance_issue_resolutions";
 
 module.exports = async function handler(request, response) {
   setCors(response, request);
@@ -24,22 +26,47 @@ module.exports = async function handler(request, response) {
 
 async function handleGet(request, response) {
   const reportId = `${request.query.reportId || ""}`.trim();
-  if (!reportId) {
-    response.status(400).json({ error: "reportId is required" });
+  const fingerprints = parseCsv(request.query.fingerprints).slice(0, 200);
+  if (!reportId && !fingerprints.length) {
+    response.status(400).json({ error: "reportId or fingerprints is required" });
     return;
   }
 
-  const result = await supabaseFetch(
-    `/${TABLE_NAME}?report_id=eq.${encodeURIComponent(reportId)}&select=issue_key,resolved,resolved_at,resolved_by,updated_at`,
-    { method: "GET" }
-  );
-  response.status(200).json({ states: result });
+  const [states, resolutions] = await Promise.all([
+    reportId
+      ? fetchReportStates(reportId)
+      : [],
+    fingerprints.length
+      ? supabaseFetch(
+          `/${RESOLUTION_TABLE_NAME}?issue_fingerprint=in.(${fingerprints.map(encodeURIComponent).join(",")})&resolved=eq.true&select=issue_fingerprint,account_id,issue_type,issue_key,resolved,resolved_at,resolved_by,updated_at`,
+          { method: "GET" }
+        ).catch(() => [])
+      : []
+  ]);
+  response.status(200).json({ states, resolutions });
+}
+
+async function fetchReportStates(reportId) {
+  try {
+    return await supabaseFetch(
+      `/${TABLE_NAME}?report_id=eq.${encodeURIComponent(reportId)}&select=issue_key,issue_fingerprint,account_id,issue_type,resolved,resolved_at,resolved_by,updated_at`,
+      { method: "GET" }
+    );
+  } catch {
+    return supabaseFetch(
+      `/${TABLE_NAME}?report_id=eq.${encodeURIComponent(reportId)}&select=issue_key,resolved,resolved_at,resolved_by,updated_at`,
+      { method: "GET" }
+    );
+  }
 }
 
 async function handlePost(request, response) {
   const body = parseBody(request.body);
   const reportId = `${body.reportId || ""}`.trim();
   const issueKey = `${body.issueKey || ""}`.trim();
+  const issueFingerprint = `${body.issueFingerprint || ""}`.trim();
+  const accountId = `${body.accountId || ""}`.trim();
+  const issueType = `${body.issueType || "mixed"}`.trim().slice(0, 80);
   if (!reportId || !issueKey) {
     response.status(400).json({ error: "reportId and issueKey are required" });
     return;
@@ -50,20 +77,62 @@ async function handlePost(request, response) {
   const payload = {
     report_id: reportId,
     issue_key: issueKey,
+    issue_fingerprint: issueFingerprint || null,
+    account_id: accountId || null,
+    issue_type: issueType || null,
     resolved,
     resolved_at: resolved ? now : null,
     resolved_by: body.resolvedBy ? `${body.resolvedBy}`.slice(0, 120) : null,
     updated_at: now
   };
 
-  const result = await supabaseFetch(
-    `/${TABLE_NAME}?on_conflict=report_id,issue_key`,
-    {
-      method: "POST",
-      headers: { Prefer: "resolution=merge-duplicates,return=representation" },
-      body: JSON.stringify(payload)
-    }
-  );
+  let result;
+  try {
+    result = await supabaseFetch(
+      `/${TABLE_NAME}?on_conflict=report_id,issue_key`,
+      {
+        method: "POST",
+        headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+        body: JSON.stringify(payload)
+      }
+    );
+  } catch (error) {
+    result = await supabaseFetch(
+      `/${TABLE_NAME}?on_conflict=report_id,issue_key`,
+      {
+        method: "POST",
+        headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+        body: JSON.stringify({
+          report_id: reportId,
+          issue_key: issueKey,
+          resolved,
+          resolved_at: resolved ? now : null,
+          resolved_by: body.resolvedBy ? `${body.resolvedBy}`.slice(0, 120) : null,
+          updated_at: now
+        })
+      }
+    );
+  }
+
+  if (issueFingerprint) {
+    await supabaseFetch(
+      `/${RESOLUTION_TABLE_NAME}?on_conflict=issue_fingerprint`,
+      {
+        method: "POST",
+        headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+        body: JSON.stringify({
+          issue_fingerprint: issueFingerprint,
+          account_id: accountId || null,
+          issue_type: issueType || null,
+          issue_key: issueKey,
+          resolved,
+          resolved_at: resolved ? now : null,
+          resolved_by: body.resolvedBy ? `${body.resolvedBy}`.slice(0, 120) : null,
+          updated_at: now
+        })
+      }
+    ).catch(() => null);
+  }
   response.status(200).json({ state: result?.[0] || payload });
 }
 
@@ -100,6 +169,13 @@ function parseBody(body) {
   if (!body) return {};
   if (typeof body === "string") return JSON.parse(body);
   return body;
+}
+
+function parseCsv(value) {
+  return `${value || ""}`
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "https://report-viewer-theta.vercel.app")

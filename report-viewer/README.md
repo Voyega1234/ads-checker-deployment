@@ -26,6 +26,8 @@ Create the database table with:
 -- report-viewer/sql/ad_compliance_issue_states.sql
 ```
 
+The same SQL file also adds durable `issue_fingerprint` resolution storage. Run it again after updates; it uses `if not exists` / `add column if not exists`.
+
 Deploy:
 
 ```bash

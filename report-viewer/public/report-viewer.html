@@ -691,20 +691,36 @@
     }
     .detail-section-head h3 { margin: 0; }
     .copy-revised {
-      min-height: 30px;
+      width: 32px;
+      height: 30px;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: #fff;
       color: var(--muted);
       cursor: pointer;
-      font: inherit;
-      font-size: 12px;
       padding: 0 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
     .copy-revised:hover {
       border-color: rgba(8, 59, 236, .25);
       color: var(--accent);
       background: rgba(8, 59, 236, .035);
+    }
+    .copy-icon {
+      width: 14px;
+      height: 14px;
+      display: block;
+      pointer-events: none;
+      object-fit: contain;
+    }
+    .copy-revised.is-copied,
+    .spelling-copy.is-copied,
+    .affected-copy.is-copied {
+      border-color: rgba(26, 122, 69, .28);
+      color: #1a7a45;
+      background: rgba(52, 199, 89, .08);
     }
     .detail-body ul {
       margin: 0 0 16px;
@@ -903,16 +919,22 @@
       font-weight: 650;
     }
     .spelling-copy {
-      min-width: 32px;
-      min-height: 30px;
+      width: 26px;
+      height: 26px;
+      flex: 0 0 26px;
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: 7px;
       background: #fff;
       color: var(--muted);
       cursor: pointer;
-      font: inherit;
-      font-size: 13px;
-      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    .spelling-copy .copy-icon {
+      width: 12px;
+      height: 12px;
     }
     .spelling-copy:hover {
       border-color: rgba(8, 59, 236, .25);
@@ -952,10 +974,11 @@
     .affected-chip[hidden] { display: none; }
     .affected-chip code { font-size: 11px; }
     .affected-copy {
-      width: 22px;
+      width: 24px;
       height: 22px;
+      flex: 0 0 24px;
       border: 1px solid var(--line);
-      border-radius: 999px;
+      border-radius: 7px;
       background: #fff;
       color: var(--muted);
       cursor: pointer;
@@ -963,8 +986,11 @@
       align-items: center;
       justify-content: center;
       padding: 0;
-      font-size: 12px;
-      line-height: 1;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, .06);
+    }
+    .affected-copy .copy-icon {
+      width: 12px;
+      height: 12px;
     }
     .affected-copy:hover {
       color: var(--accent);
@@ -1172,9 +1198,10 @@
     };
     const appState = {
       reportId: "",
+      report: null,
       resolved: new Map(),
       storageKey: "",
-      remoteStateEnabled: window.location.protocol !== "file:",
+      remoteStateEnabled: isRemoteStateHost(),
       totals: {
         creatives: 0,
         ads: 0,
@@ -1199,6 +1226,7 @@
       if (!response.ok) throw new Error("Could not load report JSON: " + response.status);
       const alert = await response.json();
       const report = normalizeAlert(alert);
+      appState.report = report;
       appState.reportId = createReportId(reportUrl, alert);
       appState.storageKey = `adComplianceResolved:${appState.reportId}`;
       renderReport(report);
@@ -1252,7 +1280,22 @@
         .map((block) => ({ url: block.image_url, title: block.title?.text || "Ad placement preview" })));
       const context = blocks.find((block) => block.type === "context")?.elements?.[0]?.text || "";
       const key = message.key || createIssueKey(creativeName, adIds, index);
-      return { key, creativeName, usedInAds, adIds, status, placementIssues, revisedText, screenshots, context, details: message.details || {} };
+      const details = message.details || {};
+      return {
+        key,
+        creativeName,
+        usedInAds,
+        adIds,
+        status,
+        placementIssues,
+        revisedText,
+        screenshots,
+        context,
+        details,
+        issueFingerprint: details.issueFingerprint || "",
+        issueType: details.issueType || "mixed",
+        resolved: Boolean(details.resolution?.resolved)
+      };
     }
 
     function parseStatus(text) {
@@ -1350,7 +1393,7 @@
       const usedInAds = Math.max(Number(group.usedInAds || group.adIds.length || 0), 1);
       const placementIssueCount = hasPlacement ? getIssueCount(group.status.placement, 1) : 0;
       const search = [group.creativeName, group.adIds.join(" "), Object.values(group.status).join(" "), group.placementIssues.join(" "), group.revisedText, group.context].join(" ").toLowerCase();
-      return `<article class="group" data-issue-key="${escapeAttr(group.key)}" data-sort-index="${index}" data-used-in-ads="${usedInAds}" data-affected-count="${usedInAds}" data-policy="${hasPolicy}" data-spelling="${hasSpelling}" data-placement="${hasPlacement}" data-policy-count="${hasPolicy ? usedInAds : 0}" data-spelling-count="${hasSpelling ? usedInAds : 0}" data-placement-count="${placementIssueCount}" data-screenshot="${hasScreenshot}" data-resolved="false" data-search="${escapeAttr(search)}">
+      return `<article class="group" data-issue-key="${escapeAttr(group.key)}" data-issue-fingerprint="${escapeAttr(group.issueFingerprint || "")}" data-issue-type="${escapeAttr(group.issueType || "mixed")}" data-sort-index="${index}" data-used-in-ads="${usedInAds}" data-affected-count="${usedInAds}" data-policy="${hasPolicy}" data-spelling="${hasSpelling}" data-placement="${hasPlacement}" data-policy-count="${hasPolicy ? usedInAds : 0}" data-spelling-count="${hasSpelling ? usedInAds : 0}" data-placement-count="${placementIssueCount}" data-screenshot="${hasScreenshot}" data-resolved="${group.resolved ? "true" : "false"}" data-search="${escapeAttr(search)}">
         <div class="group-head">
           <div class="group-title-row">
             <div>
@@ -1442,7 +1485,7 @@
         <p class="affected-title">Affected ads</p>
         <p class="affected-sub">${escapeHtml(formatAdCount(group.usedInAds || adIds.length))} use this same creative/caption</p>
         <div class="affected-chips">
-          ${adIds.map((adId, index) => `<span class="affected-chip"${index >= visibleLimit ? " hidden data-extra-ad-id" : ""}><code>${escapeHtml(adId)}</code><button class="affected-copy" type="button" title="Copy ${escapeAttr(adId)}" aria-label="Copy ad ID ${escapeAttr(adId)}" data-copy-value="${escapeAttr(adId)}" data-copy-label="⧉">⧉</button></span>`).join("")}
+          ${adIds.map((adId, index) => `<span class="affected-chip"${index >= visibleLimit ? " hidden data-extra-ad-id" : ""}><code>${escapeHtml(adId)}</code><button class="affected-copy" type="button" title="Copy ${escapeAttr(adId)}" aria-label="Copy ad ID ${escapeAttr(adId)}" data-copy-value="${escapeAttr(adId)}">${copyIcon()}</button></span>`).join("")}
         </div>
         ${hiddenCount ? `<button class="affected-more" type="button" data-toggle-ad-ids data-hidden-count="${hiddenCount}">See ${hiddenCount} more</button>` : ""}
         <p class="affected-note">Fixing this creative/caption should resolve the issue across all listed ads.</p>
@@ -1468,7 +1511,7 @@
       return `<section class="revised-card">
         <div class="detail-section-head">
           <h3>Revised text</h3>
-          <button class="copy-revised" type="button" data-copy-value="${escapeAttr(revisedText)}">Copy</button>
+          <button class="copy-revised" type="button" data-copy-value="${escapeAttr(revisedText)}" title="Copy revised text" aria-label="Copy revised text">${copyIcon()}</button>
         </div>
         <pre>${escapeHtml(revisedText)}</pre>
       </section>`;
@@ -1669,7 +1712,7 @@
         <span class="spell-token is-original">${escapeHtml(item.original || "N/A")}</span>
         <span class="spell-arrow">→</span>
         <span class="spell-token is-corrected">${escapeHtml(item.corrected || "N/A")}</span>
-        <button class="spelling-copy" type="button" data-copy-value="${escapeAttr(copyValue)}" data-copy-label="⧉" title="Copy correction" aria-label="Copy correction">⧉</button>
+        <button class="spelling-copy" type="button" data-copy-value="${escapeAttr(copyValue)}" title="Copy correction" aria-label="Copy correction">${copyIcon()}</button>
       </div>`;
     }
 
@@ -1803,11 +1846,9 @@
         const copyButton = event.target.closest("[data-copy-value]");
         if (copyButton) {
           copyText(copyButton.dataset.copyValue || "");
-          const originalText = copyButton.dataset.copyLabel || copyButton.textContent;
-          const copiedText = copyButton.classList.contains("affected-copy") ? "✓" : "Copied";
-          copyButton.textContent = copiedText;
+          copyButton.classList.add("is-copied");
           setTimeout(() => {
-            copyButton.textContent = originalText;
+            copyButton.classList.remove("is-copied");
           }, 1400);
           return;
         }
@@ -1921,19 +1962,48 @@
     async function loadIssueStates() {
       const localStates = readLocalStates();
       appState.resolved = new Map(Object.entries(localStates));
+      seedResolvedStatesFromReport();
       if (!appState.remoteStateEnabled) return;
 
       try {
-        const response = await fetch(`/api/issue-states?reportId=${encodeURIComponent(appState.reportId)}`);
+        const fingerprints = collectIssueFingerprints();
+        const params = new URLSearchParams({ reportId: appState.reportId });
+        if (fingerprints.length) params.set("fingerprints", fingerprints.join(","));
+        const response = await fetch(`/api/issue-states?${params.toString()}`);
         if (!response.ok) throw new Error(`Issue state API failed: ${response.status}`);
         const data = await response.json();
         for (const item of data.states || []) {
           appState.resolved.set(item.issue_key, Boolean(item.resolved));
         }
+        const cards = Array.from(document.querySelectorAll(".group"));
+        for (const item of data.resolutions || []) {
+          if (!item.resolved || !item.issue_fingerprint) continue;
+          for (const card of cards) {
+            if (card.dataset.issueFingerprint === item.issue_fingerprint) {
+              appState.resolved.set(card.dataset.issueKey, true);
+            }
+          }
+        }
         writeLocalStates(Object.fromEntries(appState.resolved));
       } catch (error) {
         console.warn(error);
       }
+    }
+
+    function seedResolvedStatesFromReport() {
+      document.querySelectorAll(".group").forEach((card) => {
+        if (card.dataset.resolved === "true") {
+          appState.resolved.set(card.dataset.issueKey, true);
+        }
+      });
+    }
+
+    function collectIssueFingerprints() {
+      return Array.from(new Set(
+        Array.from(document.querySelectorAll(".group"))
+          .map((card) => card.dataset.issueFingerprint)
+          .filter(Boolean)
+      ));
     }
 
     function applyResolvedStates() {
@@ -1962,10 +2032,18 @@
       if (!appState.remoteStateEnabled) return;
 
       try {
+        const card = document.querySelector(`.group[data-issue-key="${cssEscape(issueKey)}"]`);
         const response = await fetch("/api/issue-states", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ reportId: appState.reportId, issueKey, resolved })
+          body: JSON.stringify({
+            reportId: appState.reportId,
+            issueKey,
+            resolved,
+            issueFingerprint: card?.dataset.issueFingerprint || "",
+            issueType: card?.dataset.issueType || "mixed",
+            accountId: appState.report?.meta?.accountId || ""
+          })
         });
         if (!response.ok) throw new Error(`Issue state API failed: ${response.status}`);
       } catch (error) {
@@ -1981,6 +2059,11 @@
       } catch {
         return {};
       }
+    }
+
+    function cssEscape(value) {
+      if (window.CSS?.escape) return CSS.escape(value);
+      return String(value || "").replace(/["\\]/g, "\\$&");
     }
 
     function writeLocalStates(states) {
@@ -2016,6 +2099,18 @@
     function getIssueCount(value, fallback = 1) {
       const match = String(value || "").match(/\((\d+)\s*ads?\)/i);
       return Number(match?.[1] || fallback);
+    }
+
+    function isRemoteStateHost() {
+      const host = window.location.hostname;
+      return window.location.protocol === "https:" && (
+        host === "report-viewer-theta.vercel.app" ||
+        host.endsWith("-wave-convertcakes-projects.vercel.app")
+      );
+    }
+
+    function copyIcon() {
+      return `<img class="copy-icon" src="./copy.png" alt="" aria-hidden="true" draggable="false">`;
     }
 
     async function copyText(value) {
