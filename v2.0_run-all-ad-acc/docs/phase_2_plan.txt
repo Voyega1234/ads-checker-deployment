@@ -1,0 +1,148 @@
+PHASE 2 — WORKER MODES AND SUPABASE STATE
+=========================================
+Raw notes for later implementation. Not a spec; revise as product decisions land.
+
+1. GOALS
+--------
+- Add explicit worker modes:
+  - python worker.py --init
+    One sweep over all active ad accounts (same family as current --once, but
+    every account). Optional: ordering, concurrency limits, resume.
+  - python worker.py --realtime
+    Poll a future queue table (e.g. meta_task): pending tasks with ad_account_id
+    and a payload (e.g. list of ad_id / updated_at hints); process without
+    re-scanning every account on a timer.
+- Clarify how account-level state (meta_adaccount_assessment_state) fits beside
+  per-ad tables (meta_ad_check_db).
+- Decide whether to keep, replace, or narrow the current 15-minute loop that
+  runs every active ad account on each tick (worker.py default).
+
+
+2. WHAT THE CODEBASE DOES TODAY (BASELINE)
+------------------------------------------
+- worker.py loads all rows from Supabase meta_adaccounts where Status is Active,
+  then runs verification_flow.run_client_verification once per ad account (or
+  one account if: python worker.py --once act_...).
+- Default: poll every 15 minutes and re-run every active account each cycle.
+  There is no persisted notion of "this account was already processed this hour."
+- Per-ad truth is in meta_ad_check_db (and history tables). Invalidation
+  (what changed on Meta, what needs Gemini) lives in verification_flow:
+  sync compares snapshot to Meta; must_recheck_row / text and creative diffs;
+  _should_queue_text_assessment. Gemini and Slack only run where queued—not
+  for every ad on every run.
+- meta_adaccount_assessment_state exists in docs/supabase_db_schema.sql
+  (one row per ad account: last_assessment_at, assessment_status, last_run_id,
+  etc.) but Python does not read or write it yet. So the worker cannot
+  record "last account-level run" in the database today.
+
+
+3. TABLE / MECHANISM ROLES
+---------------------------
+- meta_adaccounts
+  Source of which ad accounts are in scope and Active. Join key for client_id /
+  routing (with Google Sheet Client tab for Slack). Does not answer "did a
+  worker pass complete successfully" or "when was the last run."
+
+- meta_ad_check_db (+ sync rules in verification_flow)
+  One row per client + ad account + ad + creative (see schema). Answers:
+  which ads need text assessment, checked_at vs Meta updated_at, caption or
+  creative change, not_verified / verified / etc.
+
+- meta_adaccount_assessment_state
+  One row per ad account (ad_account_id PK). Intended for operational / run-level
+  metadata: e.g. last_assessment_at, assessment_status, last_run_id, last_error,
+  optional last_slack_message snapshot. Answers: when a worker *pass* for this
+  account last finished, success vs error, for dashboards, resume, throttling,
+  coordination with a task queue. This does *not* replace per-ad state; it
+  complements it.
+
+- meta_task (future, name TBD)
+  Queue for --realtime: at minimum status (pending / processing / done / failed),
+  ad_account_id, payload (e.g. ad_id list, optional updated_at for debugging),
+  created_at, and fields for lease / locking if multiple workers exist.
+
+
+4. DO WE NEED meta_adaccount_assessment_state?
+----------------------------------------------
+- Listing active accounts from meta_adaccounts only tells *whom* to include,
+  not *whether a run completed* or *when*.
+- If you need account-level observability, idempotency for long --init sweeps,
+  failure reporting, or "mark run done" alongside a future task table, keep
+  and wire the table (worker must upsert on start/success/failure as designed).
+- If you never need that metadata in the database, you could skip it; your
+  stated problem ("worker will not know which ad account is already run") is
+  what this table is for once the worker writes to it.
+
+
+5. python worker.py --init (FUTURE)
+------------------------------------
+- Outer behavior: same as current --once, but for every active ad account from
+  meta_adaccounts (same source as today). May add: sort order, max parallel
+  accounts, resume from last account using meta_adaccount_assessment_state
+  (implementation detail).
+- "Will it run only the new/updated ads?"
+  With current verification_flow: yes, in the sense that each account run still
+  fetches from Meta, syncs to meta_ad_check_db, and only queues assessment for
+  ads that are invalidation-eligible (new, never checked, or content/Meta
+  change per _should_force_text_recheck). It does not blindly re-run Gemini on
+  every ad every time.
+- Product choice to document when implementing: optional separate flag, e.g.
+  --init --force-reassess-all, to ignore checked_at and re-assess all text
+  (not the default for --init unless you add it).
+
+
+6. python worker.py --realtime (FUTURE)
+--------------------------------------
+- Pattern: poll meta_task (or equivalent) for rows with status = pending;
+  claim with lease/locking; set processing then done or failed.
+- Payload: ad_account_id plus list of ad_id (and optionally Meta updated time
+  for logging). Worker loads client + Slack routing as today, then either:
+  - Fetches only those ads from the Meta API where supported, or
+  - Fetches the full account set but filters sync/assessment to the listed
+    ad_id (simpler first version).
+- After a successful run, update meta_adaccount_assessment_state if you want
+  account-level last success aligned with realtime processing; per-task
+  run_id may overlap with last_run_id (design choice).
+
+
+7. WORKER / CODE CHANGES (LATER — NOT IN THIS DOC COMMIT)
+----------------------------------------------------------
+- CLI: add --init and --realtime; keep --once and default loop behavior until
+  explicitly deprecated.
+- supabase_db_helper (or new module): upsert/read meta_adaccount_assessment_state
+  at run start, success, and error for each account (and hooks for --init
+  progress if needed).
+- verification_flow: optional entry point or parameters for "only these ad_id"
+  to support realtime without duplicating business rules.
+- Realtime: loop that selects pending tasks, claims, invokes verification,
+  finalizes task row.
+
+
+8. EDGE CASES TO HANDLE IN IMPLEMENTATION
+-----------------------------------------
+- Account becomes Inactive in meta_adaccounts after task was queued: skip or
+  fail the task with a clear reason.
+- Stale ad_id in task payload (ad deleted, moved): no-op or mark partial success;
+  do not block the queue forever.
+- Meta and Gemini rate limits: backoff; optional per-account throttling using
+  last_assessment_at.
+- Idempotency: same task or duplicate ad_id in queue; lease expiry and retry.
+
+
+9. NON-GOALS (OPTIONAL FOR PHASE 2)
+-----------------------------------
+- Media assessment parity, multi-region workers, or replacing Google Sheet
+  Client tab—unless explicitly added to scope later.
+
+
+10. DATA FLOW (REFERENCE)
+-------------------------
+meta_adaccounts     ->  who is active, client routing
+meta_ad_check_db    ->  per-ad sync and assessment state
+meta_adaccount_assessment_state -> per-account run metadata (after wired)
+meta_task (future)  ->  realtime queue
+
+  worker.py
+     reads meta_adaccounts (and in realtime: meta_task)
+     syncs/assesses -> meta_ad_check_db
+     logs run       -> meta_adaccount_assessment_state (when implemented)

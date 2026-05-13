@@ -1,0 +1,24 @@
+{
+  "name": "ad-preview-checker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "demo": "node src/index.js --demo",
+    "check": "node src/index.js",
+    "check:json": "node src/index.js --json",
+    "test:incorrect:slack": "node src/test-incorrect-to-slack.js",
+    "unified:preview": "node src/build-unified-compliance-alert.js",
+    "report:html": "node src/build-html-report.js",
+    "report:slack": "node src/send-html-report-to-slack.js",
+    "report:viewer:slack": "node src/send-report-viewer-to-slack.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "playwright": "^1.51.1",
+    "pngjs": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

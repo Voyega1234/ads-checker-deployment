@@ -34,4 +34,3 @@ once.
 
 Do not put secrets in this folder. Use root `.env` locally and platform
 environment variables in Cloud Run/Vercel.
-# ads-checker-deployment

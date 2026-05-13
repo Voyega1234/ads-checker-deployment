@@ -1,0 +1,2573 @@
+act_240393917186645/ads?fields=id,name,created_time,updated_time,effective_status,creative{id,name,object_story_spec,asset_feed_spec,image_url,thumbnail_url,video_id}&effective_status=['ACTIVE']&limit=500
+
+return : 
+
+==== Query
+  curl -i -X GET \
+   "https://graph.facebook.com/v23.0/act_240393917186645/ads?fields=id%2Cname%2Ccreated_time%2Cupdated_time%2Ceffective_status%2Ccreative%7Bid%2Cname%2Cobject_story_spec%2Casset_feed_spec%2Cimage_url%2Cthumbnail_url%2Cvideo_id%7D&effective_status=%5B'ACTIVE'%5D&limit=100&access_token=<access token sanitized>"
+==== Access Token Info
+  {
+    "perms": [
+      "read_insights",
+      "pages_show_list",
+      "ads_management",
+      "ads_read",
+      "business_management",
+      "pages_read_engagement",
+      "public_profile"
+    ],
+    "user_id": 1207830923978817,
+    "app_id": 793552745725747
+  }
+==== Parameters
+- Query Parameters
+
+
+  {
+    "fields": "id,name,created_time,updated_time,effective_status,creative{id,name,object_story_spec,asset_feed_spec,image_url,thumbnail_url,video_id}",
+    "effective_status": "['ACTIVE']",
+    "limit": "100"
+  }
+- POST Parameters
+
+
+  {}
+==== Response
+  {
+    "data": [
+      {
+        "id": "120238358001330540",
+        "name": "20260306_VDO_Health Screen Bright Colour B",
+        "created_time": "2026-03-13T18:51:50+0700",
+        "updated_time": "2026-03-13T18:55:00+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "1576521370071954",
+          "name": "{{product.name}} 2026-03-13-8d88922ee4a6daf99f8c8c0f76c7acfc",
+          "object_story_spec": {
+            "page_id": "826292100577332",
+            "instagram_user_id": "17841433852302603"
+          },
+          "asset_feed_spec": {
+            "videos": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f5ef54dac2c453845_1773402241942",
+                    "id": "120238358201650540"
+                  }
+                ],
+                "video_id": "939799528594150",
+                "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/650278965_1573687453924406_4527858950520425893_n.jpg?stp=dst-jpg_s160x160_tt6&_nc_cat=110&ccb=1-7&_nc_sid=b696e2&_nc_ohc=SUWyC_6T2cAQ7kNvwElMwSH&_nc_oc=Adp71nIBGd40eXKwzZVrK5x_2LICq-H5bgYopxTt7VxcUZF-RaU5nAzUpcNi9OkDL3E&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQHiQD6u589A3sSs7oC-vctGX-mur504eSrtosBx33IxbSIuaHHQUxnvsL1d4OLVHJxqsbl8AITe&oh=00_AfxrjxHzbKDZ-hcA7B-Nt7vnlVpQza9jlcsJVeMrzayuyA&oe=69C7EC35"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fd2e620dc847ddd0a_1773402223703",
+                    "id": "120238358201890540"
+                  },
+                  {
+                    "name": "placement_asset_f6dfd247004c64410_1773402241944",
+                    "id": "120238358201900540"
+                  }
+                ],
+                "video_id": "1438100561057760",
+                "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/650415724_1394340452711374_3363821681132364455_n.jpg?stp=dst-jpg_s160x160_tt6&_nc_cat=106&ccb=1-7&_nc_sid=b696e2&_nc_ohc=x8qd0RoxXRcQ7kNvwHdVe0_&_nc_oc=AdrMB1c_PaTpgZzvbEWMWI8Z9rWDisqtLX6SNgQ0PDft1rD4rp7OUEjc8VeJc15bWzo&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQGjMl2r5oZSQ2dcwWhKoKDirtrknBrTYNP-tAR_J02SkMp9qF8sF2eBfP1YAzG1CN9_yQLFPMOa&oh=00_Afy8DqUt28D5mPtQehmaGnk0RUsaEeeicn4WAicbtJ9E4Q&oe=69C7EC77"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f3451b7faf211bbce_1773402241946",
+                    "id": "120238358201960540"
+                  },
+                  {
+                    "name": "placement_asset_fb9b21deef283585b_1773402223715",
+                    "id": "120238358201980540"
+                  }
+                ],
+                "video_id": "1428123242395714",
+                "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/651174865_849153841471801_2110727534834411946_n.jpg?stp=dst-jpg_p168x128_tt6&_nc_cat=106&ccb=1-7&_nc_sid=b696e2&_nc_ohc=uBrwkcdfUZUQ7kNvwH0-JfA&_nc_oc=AdoxYqH8_EitlU2s7sKKL0iyqGPtE9B2I6RNi22U57-joQVN6NJzoobHWJ3KqhlCae0&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQE6A5Dcv18BYcdZdYajrBgAjo_bHZt08jxlbtSyumClwKcCVDx0uwdfhCyvIhFwUwr1J6yyE23S&oh=00_AfziDVN3UGxjRSIcaUEco8tMBfYGHYxCzVXo6w5Z97ZAOw&oe=69C7EEA0"
+              }
+            ],
+            "bodies": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f71d5408b91562f83_1773402241945",
+                    "id": "120238358201710540"
+                  },
+                  {
+                    "name": "placement_asset_f03be5cf83eae75c7_1773402241942",
+                    "id": "120238358201740540"
+                  },
+                  {
+                    "name": "placement_asset_fb5d3ca7f99d98cb4_1773402241947",
+                    "id": "120238358201800540"
+                  }
+                ],
+                "text": "สมองล้า เหนื่อยง่าย ประจำเดือนผิดปกติ อาจเป็นสัญญาณเตือน ตรวจเพื่อรู้คำตอบ"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f71d5408b91562f83_1773402241945",
+                    "id": "120238358201710540"
+                  },
+                  {
+                    "name": "placement_asset_f03be5cf83eae75c7_1773402241942",
+                    "id": "120238358201740540"
+                  },
+                  {
+                    "name": "placement_asset_fb5d3ca7f99d98cb4_1773402241947",
+                    "id": "120238358201800540"
+                  }
+                ],
+                "text": "การรู้สึกโอเคไม่ใช่การวินิจฉัย ตรวจสุขภาพผู้หญิงแบบครบวงจร เพื่อรู้จริง"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f71d5408b91562f83_1773402241945",
+                    "id": "120238358201710540"
+                  },
+                  {
+                    "name": "placement_asset_f03be5cf83eae75c7_1773402241942",
+                    "id": "120238358201740540"
+                  },
+                  {
+                    "name": "placement_asset_fb5d3ca7f99d98cb4_1773402241947",
+                    "id": "120238358201800540"
+                  }
+                ],
+                "text": "ธาตุเหล็ก คอเลสเตอรอล ฮอร์โมน และความเสี่ยงมะเร็ง ครบเรื่องสุขภาพผู้หญิงในแพ็กเดียว"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f71d5408b91562f83_1773402241945",
+                    "id": "120238358201710540"
+                  },
+                  {
+                    "name": "placement_asset_f03be5cf83eae75c7_1773402241942",
+                    "id": "120238358201740540"
+                  },
+                  {
+                    "name": "placement_asset_fb5d3ca7f99d98cb4_1773402241947",
+                    "id": "120238358201800540"
+                  }
+                ],
+                "text": "ตรวจฮอร์โมน หัวใจ และเลือด เพื่อรู้สถานะสุขภาพจริงของคุณ แบบไม่ต้องเดา"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f71d5408b91562f83_1773402241945",
+                    "id": "120238358201710540"
+                  },
+                  {
+                    "name": "placement_asset_f03be5cf83eae75c7_1773402241942",
+                    "id": "120238358201740540"
+                  },
+                  {
+                    "name": "placement_asset_fb5d3ca7f99d98cb4_1773402241947",
+                    "id": "120238358201800540"
+                  }
+                ],
+                "text": "เธอดูแลหลายอย่างในชีวิต แต่สุขภาพภายในได้ตรวจจริงหรือยัง? เริ่มต้นเช็กสุขภาพผู้หญิงวันนี้"
+              }
+            ],
+            "call_to_action_types": [
+              "BOOK_TRAVEL"
+            ],
+            "descriptions": [
+              {
+                "text": ""
+              }
+            ],
+            "link_urls": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fb2504240fca12e9e_1773402241945",
+                    "id": "120238358201700540"
+                  },
+                  {
+                    "name": "placement_asset_f511c3881b862094a_1773402241947",
+                    "id": "120238358201810540"
+                  },
+                  {
+                    "name": "placement_asset_f3460ba82beb4aaf8_1773402241943",
+                    "id": "120238358201870540"
+                  }
+                ],
+                "website_url": "https://www.doctoranywhere.co.th/da-health-checkup-program?lang=th",
+                "display_url": ""
+              }
+            ],
+            "titles": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f4ff1f61d46206840_1773402241942",
+                    "id": "120238358201670540"
+                  },
+                  {
+                    "name": "placement_asset_fe6e0ccbe533cfe41_1773402241947",
+                    "id": "120238358201690540"
+                  },
+                  {
+                    "name": "placement_asset_f64c7a45d4147a0ff_1773402241945",
+                    "id": "120238358201940540"
+                  }
+                ],
+                "text": "Pretty healthy?"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f4ff1f61d46206840_1773402241942",
+                    "id": "120238358201670540"
+                  },
+                  {
+                    "name": "placement_asset_fe6e0ccbe533cfe41_1773402241947",
+                    "id": "120238358201690540"
+                  },
+                  {
+                    "name": "placement_asset_f64c7a45d4147a0ff_1773402241945",
+                    "id": "120238358201940540"
+                  }
+                ],
+                "text": "เริ่มดูแลสุขภาพผู้หญิงวันนี้"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f4ff1f61d46206840_1773402241942",
+                    "id": "120238358201670540"
+                  },
+                  {
+                    "name": "placement_asset_fe6e0ccbe533cfe41_1773402241947",
+                    "id": "120238358201690540"
+                  },
+                  {
+                    "name": "placement_asset_f64c7a45d4147a0ff_1773402241945",
+                    "id": "120238358201940540"
+                  }
+                ],
+                "text": "เช็กสุขภาพให้ครบ ไม่ต้องเดา"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f4ff1f61d46206840_1773402241942",
+                    "id": "120238358201670540"
+                  },
+                  {
+                    "name": "placement_asset_fe6e0ccbe533cfe41_1773402241947",
+                    "id": "120238358201690540"
+                  },
+                  {
+                    "name": "placement_asset_f64c7a45d4147a0ff_1773402241945",
+                    "id": "120238358201940540"
+                  }
+                ],
+                "text": "สุขภาพแค่รู้สึกว่าโอเค ยังไม่พอ"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f4ff1f61d46206840_1773402241942",
+                    "id": "120238358201670540"
+                  },
+                  {
+                    "name": "placement_asset_fe6e0ccbe533cfe41_1773402241947",
+                    "id": "120238358201690540"
+                  },
+                  {
+                    "name": "placement_asset_f64c7a45d4147a0ff_1773402241945",
+                    "id": "120238358201940540"
+                  }
+                ],
+                "text": "รู้จริง สบายใจกว่า"
+              }
+            ],
+            "ad_formats": [
+              "AUTOMATIC_FORMAT"
+            ],
+            "asset_customization_rules": [
+              {
+                "customization_spec": {
+                  "age_max": 65,
+                  "age_min": 13,
+                  "publisher_platforms": [
+                    "facebook",
+                    "instagram",
+                    "audience_network",
+                    "messenger"
+                  ],
+                  "facebook_positions": [
+                    "facebook_reels",
+                    "facebook_reels_overlay",
+                    "story"
+                  ],
+                  "instagram_positions": [
+                    "story",
+                    "reels"
+                  ],
+                  "messenger_positions": [
+                    "story"
+                  ],
+                  "audience_network_positions": [
+                    "classic",
+                    "rewarded_video"
+                  ]
+                },
+                "video_label": {
+                  "name": "placement_asset_f6dfd247004c64410_1773402241944",
+                  "id": "120238358201900540"
+                },
+                "body_label": {
+                  "name": "placement_asset_f71d5408b91562f83_1773402241945",
+                  "id": "120238358201710540"
+                },
+                "link_url_label": {
+                  "name": "placement_asset_fb2504240fca12e9e_1773402241945",
+                  "id": "120238358201700540"
+                },
+                "title_label": {
+                  "name": "placement_asset_f64c7a45d4147a0ff_1773402241945",
+                  "id": "120238358201940540"
+                },
+                "priority": 1
+              },
+              {
+                "customization_spec": {
+                  "age_max": 65,
+                  "age_min": 13,
+                  "publisher_platforms": [
+                    "facebook"
+                  ],
+                  "facebook_positions": [
+                    "right_hand_column",
+                    "search"
+                  ]
+                },
+                "video_label": {
+                  "name": "placement_asset_f3451b7faf211bbce_1773402241946",
+                  "id": "120238358201960540"
+                },
+                "body_label": {
+                  "name": "placement_asset_fb5d3ca7f99d98cb4_1773402241947",
+                  "id": "120238358201800540"
+                },
+                "link_url_label": {
+                  "name": "placement_asset_f511c3881b862094a_1773402241947",
+                  "id": "120238358201810540"
+                },
+                "title_label": {
+                  "name": "placement_asset_fe6e0ccbe533cfe41_1773402241947",
+                  "id": "120238358201690540"
+                },
+                "priority": 2
+              },
+              {
+                "customization_spec": {
+                  "age_max": 65,
+                  "age_min": 13
+                },
+                "video_label": {
+                  "name": "placement_asset_f5ef54dac2c453845_1773402241942",
+                  "id": "120238358201650540"
+                },
+                "body_label": {
+                  "name": "placement_asset_f03be5cf83eae75c7_1773402241942",
+                  "id": "120238358201740540"
+                },
+                "link_url_label": {
+                  "name": "placement_asset_f3460ba82beb4aaf8_1773402241943",
+                  "id": "120238358201870540"
+                },
+                "title_label": {
+                  "name": "placement_asset_f4ff1f61d46206840_1773402241942",
+                  "id": "120238358201670540"
+                },
+                "priority": 3
+              }
+            ],
+            "optimization_type": "PLACEMENT",
+            "additional_data": {
+              "multi_share_end_card": false,
+              "is_click_to_message": false
+            },
+            "reasons_to_shop": false,
+            "shops_bundle": false
+          },
+          "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/650278965_1573687453924406_4527858950520425893_n.jpg?_nc_cat=110&ccb=1-7&_nc_ohc=SUWyC_6T2cAQ7kNvwElMwSH&_nc_oc=Adp71nIBGd40eXKwzZVrK5x_2LICq-H5bgYopxTt7VxcUZF-RaU5nAzUpcNi9OkDL3E&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQHALbRwvlgtgprADKmKLpUM_4JbiCoogcfaFolaD886jBH5lpKx1aKIdaIsqg1tgy4BwbxtNTZ5&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=b696e2&_nc_sid=58080a&oh=00_AfzgRW4uSM1H-kyBmCLUWHXmbGNeBNW7iqcuyERmZ-81Bg&oe=69C7EC35"
+        }
+      },
+      {
+        "id": "120238358001310540",
+        "name": "20260306_Carousel_Health Screen Bright Colour B",
+        "created_time": "2026-03-13T18:51:39+0700",
+        "updated_time": "2026-03-13T18:54:28+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "1602019757748228",
+          "name": "Doctor Anywhere - Thailand 2026-03-13-bf863283ccce00587f50ac392c30c6be",
+          "object_story_spec": {
+            "page_id": "826292100577332",
+            "instagram_user_id": "17841433852302603",
+            "link_data": {
+              "link": "https://www.doctoranywhere.co.th/da-health-checkup-program?lang=th",
+              "call_to_action": {
+                "type": "BOOK_TRAVEL"
+              },
+              "child_attachments": [
+                {
+                  "link": "https://www.doctoranywhere.co.th/da-health-checkup-program?lang=th",
+                  "image_hash": "5d35eae19033404968c053dce7063b3c",
+                  "name": "Pretty healthy?",
+                  "call_to_action": {
+                    "type": "BOOK_TRAVEL"
+                  }
+                },
+                {
+                  "link": "https://www.doctoranywhere.co.th/da-health-checkup-program?lang=th",
+                  "image_hash": "c95893d7fc1dd5053a653b983daef2be",
+                  "name": "รู้จริง สบายใจกว่า",
+                  "call_to_action": {
+                    "type": "BOOK_TRAVEL"
+                  }
+                },
+                {
+                  "link": "https://www.doctoranywhere.co.th/da-health-checkup-program?lang=th",
+                  "image_hash": "4d4bfb50886023a9a3f6c3cfcc061649",
+                  "name": "สุขภาพแค่รู้สึกว่าโอเค ยังไม่พอ",
+                  "call_to_action": {
+                    "type": "BOOK_TRAVEL"
+                  }
+                },
+                {
+                  "link": "https://www.doctoranywhere.co.th/da-health-checkup-program?lang=th",
+                  "image_hash": "b623905ef09f4f2650b2f9dcc888067e",
+                  "name": "เช็กสุขภาพให้ครบ ไม่ต้องเดา",
+                  "call_to_action": {
+                    "type": "BOOK_TRAVEL"
+                  }
+                }
+              ],
+              "multi_share_end_card": true,
+              "multi_share_optimized": true
+            }
+          },
+          "asset_feed_spec": {
+            "bodies": [
+              {
+                "text": "เธอดูแลหลายอย่างในชีวิต แต่สุขภาพภายในได้ตรวจจริงหรือยัง? เริ่มต้นเช็กสุขภาพผู้หญิงวันนี้"
+              },
+              {
+                "text": "ตรวจฮอร์โมน หัวใจ และเลือด เพื่อรู้สถานะสุขภาพจริงของคุณ แบบไม่ต้องเดา"
+              },
+              {
+                "text": "การรู้สึกโอเคไม่ใช่การวินิจฉัย ตรวจสุขภาพผู้หญิงแบบครบวงจร เพื่อรู้จริง"
+              },
+              {
+                "text": "ธาตุเหล็ก คอเลสเตอรอล ฮอร์โมน และความเสี่ยงมะเร็ง ครบเรื่องสุขภาพผู้หญิงในแพ็กเดียว"
+              },
+              {
+                "text": "สมองล้า เหนื่อยง่าย ประจำเดือนผิดปกติ อาจเป็นสัญญาณเตือน ตรวจเพื่อรู้คำตอบ"
+              }
+            ],
+            "optimization_type": "DEGREES_OF_FREEDOM"
+          },
+          "thumbnail_url": "https://external-nrt1-2.xx.fbcdn.net/emg1/v/t13/6449567453935958322?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQKY_jK7v0Y6wNn6lE4Ta3MQHQ54LoTnQPKvIKDmQ5OWRWEdv5uV9p9DZeLwr53CyEcOqGE9b_A84SvdspOOB9ikytRQ--5ao-_cl7_vT7W0c4cPZnzlFTRu3GwqqWe_lE-SDV_rHAh5fCUWzlLSWOrK&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_oc=AdrakqQZf7e9NndRkc4j0QgENslMD0eQbnqmmGyDRNu-fSTYyRRIKJW6K-wfY0zRInU&ccb=13-1&oh=06_Q3-9AZE9ykilVuLRWxLhTfjh3815wuL1DH7ZQXsrADGfY2b1&oe=69C3CF85&_nc_sid=58080a"
+        }
+      },
+      {
+        "id": "120238357725820540",
+        "name": "20260306_VDO_Health Screen Lifestyle B",
+        "created_time": "2026-03-13T18:39:52+0700",
+        "updated_time": "2026-03-13T18:54:26+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "2503576463409974",
+          "name": "{{product.name}} 2026-03-13-82bd91fdc696269523332cde9ca59c4f",
+          "object_story_spec": {
+            "page_id": "826292100577332",
+            "instagram_user_id": "17841433852302603"
+          },
+          "asset_feed_spec": {
+            "videos": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f9e6e4a4b134d61b4_1773401914584",
+                    "id": "120238357841740540"
+                  }
+                ],
+                "video_id": "1491085522375655",
+                "thumbnail_url": "https://scontent-nrt1-2.xx.fbcdn.net/v/t15.5256-10/650312602_1661383051871494_1806172969311804847_n.jpg?stp=dst-jpg_s160x160_tt6&_nc_cat=101&ccb=1-7&_nc_sid=b696e2&_nc_ohc=_eTQqhmJvxQQ7kNvwH0ICzl&_nc_oc=AdpaIX67oF6SwohHzvrLP49Fabn8ZATg7Tb2uFdnHa5S_atrVvO4PVmo-ByrZvhbQQU&_nc_zt=23&_nc_ht=scontent-nrt1-2.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQFWgXCat-5r3dLYdwD0Y2I3blMG49MV8i9hfXJ3z7OQX3HhKrXlqZhwq7COXLMmuEtkokS0_FhQ&oh=00_AfwlS5hPfQH1QBZt53QRYrJTX_SnK-1PtTkYZgbBofD7Gw&oe=69C7C6C5"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f9c4778ea35200560_1773401897988",
+                    "id": "120238357841670540"
+                  },
+                  {
+                    "name": "placement_asset_f216fa55f58777d9c_1773401914586",
+                    "id": "120238357841690540"
+                  }
+                ],
+                "video_id": "871914645895523",
+                "thumbnail_url": "https://scontent-nrt1-1.xx.fbcdn.net/v/t15.5256-10/651695622_905201105632501_5449691894164102648_n.jpg?stp=dst-jpg_s160x160_tt6&_nc_cat=109&ccb=1-7&_nc_sid=b696e2&_nc_ohc=QXOOM02l3EUQ7kNvwFDSrb5&_nc_oc=AdqT-N1b3JvKjKovnRMzRoDNr35X_DiGM6JPhFGZDIp_9Q1zYxs8dywtliw5yQiWb-4&_nc_zt=23&_nc_ht=scontent-nrt1-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQEQswpGFjBIWv47mr6stbByACOME48U4WokXMow_FWaYEPNgWUu6slusPVi1_XslzSJm0B-Z7M6&oh=00_AfzrxQRbz50assRKA7F-ld7aBqpJ-vENy8xkV53mtXIdvA&oe=69C7DCBF"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f04cfb010e131ecc2_1773401897994",
+                    "id": "120238357841630540"
+                  },
+                  {
+                    "name": "placement_asset_fb8bb24590d082ed6_1773401914588",
+                    "id": "120238357841730540"
+                  }
+                ],
+                "video_id": "1180479540660417",
+                "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/650997154_945020891373191_993896896969727111_n.jpg?stp=dst-jpg_p168x128_tt6&_nc_cat=110&ccb=1-7&_nc_sid=b696e2&_nc_ohc=F66LCw1ex8YQ7kNvwGRGxQE&_nc_oc=Ado3A0pQ6dD2WShTvHnF1a-aCrJw3yCLUkgDd1hNLL712EN9vG-RR7Mt1UFgZo68gdI&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQGORmHSM4bV1DtaRyMfRoBCK6IW2HruVc-tMv3Pvye1wMqHC2IH6T9DzwK6y7jviFVxc7ms-XFX&oh=00_AfytEAbFMvJDr_-in3c1uiYYFXunWUg3Ip2gwAyhyX6eyg&oe=69C7B9E5"
+              }
+            ],
+            "bodies": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f418dae5316f3213a_1773401914587",
+                    "id": "120238357841480540"
+                  },
+                  {
+                    "name": "placement_asset_fc12db962cc1196e1_1773401914588",
+                    "id": "120238357841760540"
+                  },
+                  {
+                    "name": "placement_asset_fa5d4458c0946b4bd_1773401914584",
+                    "id": "120238357841780540"
+                  }
+                ],
+                "text": "สมองล้า เหนื่อยง่าย ประจำเดือนผิดปกติ อาจเป็นสัญญาณเตือน ตรวจเพื่อรู้คำตอบ"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f418dae5316f3213a_1773401914587",
+                    "id": "120238357841480540"
+                  },
+                  {
+                    "name": "placement_asset_fc12db962cc1196e1_1773401914588",
+                    "id": "120238357841760540"
+                  },
+                  {
+                    "name": "placement_asset_fa5d4458c0946b4bd_1773401914584",
+                    "id": "120238357841780540"
+                  }
+                ],
+                "text": "การรู้สึกโอเคไม่ใช่การวินิจฉัย ตรวจสุขภาพผู้หญิงแบบครบวงจร เพื่อรู้จริง"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f418dae5316f3213a_1773401914587",
+                    "id": "120238357841480540"
+                  },
+                  {
+                    "name": "placement_asset_fc12db962cc1196e1_1773401914588",
+                    "id": "120238357841760540"
+                  },
+                  {
+                    "name": "placement_asset_fa5d4458c0946b4bd_1773401914584",
+                    "id": "120238357841780540"
+                  }
+                ],
+                "text": "ธาตุเหล็ก คอเลสเตอรอล ฮอร์โมน และความเสี่ยงมะเร็ง ครบเรื่องสุขภาพผู้หญิงในแพ็กเดียว"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f418dae5316f3213a_1773401914587",
+                    "id": "120238357841480540"
+                  },
+                  {
+                    "name": "placement_asset_fc12db962cc1196e1_1773401914588",
+                    "id": "120238357841760540"
+                  },
+                  {
+                    "name": "placement_asset_fa5d4458c0946b4bd_1773401914584",
+                    "id": "120238357841780540"
+                  }
+                ],
+                "text": "ตรวจฮอร์โมน หัวใจ และเลือด เพื่อรู้สถานะสุขภาพจริงของคุณ แบบไม่ต้องเดา"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f418dae5316f3213a_1773401914587",
+                    "id": "120238357841480540"
+                  },
+                  {
+                    "name": "placement_asset_fc12db962cc1196e1_1773401914588",
+                    "id": "120238357841760540"
+                  },
+                  {
+                    "name": "placement_asset_fa5d4458c0946b4bd_1773401914584",
+                    "id": "120238357841780540"
+                  }
+                ],
+                "text": "เธอดูแลหลายอย่างในชีวิต แต่สุขภาพภายในได้ตรวจจริงหรือยัง? เริ่มต้นเช็กสุขภาพผู้หญิงวันนี้"
+              }
+            ],
+            "call_to_action_types": [
+              "BOOK_TRAVEL"
+            ],
+            "descriptions": [
+              {
+                "text": ""
+              }
+            ],
+            "link_urls": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f0b6aec33e7b79840_1773401914589",
+                    "id": "120238357841510540"
+                  },
+                  {
+                    "name": "placement_asset_f6d33c5063b752bfc_1773401914587",
+                    "id": "120238357841520540"
+                  },
+                  {
+                    "name": "placement_asset_f27be4c00a245e882_1773401914585",
+                    "id": "120238357841530540"
+                  }
+                ],
+                "website_url": "https://www.doctoranywhere.co.th/da-health-checkup-program?lang=th",
+                "display_url": ""
+              }
+            ],
+            "titles": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fa7e9e822d61314d4_1773401914584",
+                    "id": "120238357841430540"
+                  },
+                  {
+                    "name": "placement_asset_f187b34da2f947875_1773401914589",
+                    "id": "120238357841440540"
+                  },
+                  {
+                    "name": "placement_asset_f5c58ca8e79584ca1_1773401914587",
+                    "id": "120238357841550540"
+                  }
+                ],
+                "text": "Pretty healthy?"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fa7e9e822d61314d4_1773401914584",
+                    "id": "120238357841430540"
+                  },
+                  {
+                    "name": "placement_asset_f187b34da2f947875_1773401914589",
+                    "id": "120238357841440540"
+                  },
+                  {
+                    "name": "placement_asset_f5c58ca8e79584ca1_1773401914587",
+                    "id": "120238357841550540"
+                  }
+                ],
+                "text": "เริ่มดูแลสุขภาพผู้หญิงวันนี้"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fa7e9e822d61314d4_1773401914584",
+                    "id": "120238357841430540"
+                  },
+                  {
+                    "name": "placement_asset_f187b34da2f947875_1773401914589",
+                    "id": "120238357841440540"
+                  },
+                  {
+                    "name": "placement_asset_f5c58ca8e79584ca1_1773401914587",
+                    "id": "120238357841550540"
+                  }
+                ],
+                "text": "เช็กสุขภาพให้ครบ ไม่ต้องเดา"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fa7e9e822d61314d4_1773401914584",
+                    "id": "120238357841430540"
+                  },
+                  {
+                    "name": "placement_asset_f187b34da2f947875_1773401914589",
+                    "id": "120238357841440540"
+                  },
+                  {
+                    "name": "placement_asset_f5c58ca8e79584ca1_1773401914587",
+                    "id": "120238357841550540"
+                  }
+                ],
+                "text": "สุขภาพแค่รู้สึกว่าโอเค ยังไม่พอ"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fa7e9e822d61314d4_1773401914584",
+                    "id": "120238357841430540"
+                  },
+                  {
+                    "name": "placement_asset_f187b34da2f947875_1773401914589",
+                    "id": "120238357841440540"
+                  },
+                  {
+                    "name": "placement_asset_f5c58ca8e79584ca1_1773401914587",
+                    "id": "120238357841550540"
+                  }
+                ],
+                "text": "รู้จริง สบายใจกว่า"
+              }
+            ],
+            "ad_formats": [
+              "AUTOMATIC_FORMAT"
+            ],
+            "asset_customization_rules": [
+              {
+                "customization_spec": {
+                  "age_max": 65,
+                  "age_min": 13,
+                  "publisher_platforms": [
+                    "facebook",
+                    "instagram",
+                    "audience_network",
+                    "messenger"
+                  ],
+                  "facebook_positions": [
+                    "facebook_reels",
+                    "facebook_reels_overlay",
+                    "story"
+                  ],
+                  "instagram_positions": [
+                    "story",
+                    "reels"
+                  ],
+                  "messenger_positions": [
+                    "story"
+                  ],
+                  "audience_network_positions": [
+                    "classic",
+                    "rewarded_video"
+                  ]
+                },
+                "video_label": {
+                  "name": "placement_asset_f216fa55f58777d9c_1773401914586",
+                  "id": "120238357841690540"
+                },
+                "body_label": {
+                  "name": "placement_asset_f418dae5316f3213a_1773401914587",
+                  "id": "120238357841480540"
+                },
+                "link_url_label": {
+                  "name": "placement_asset_f6d33c5063b752bfc_1773401914587",
+                  "id": "120238357841520540"
+                },
+                "title_label": {
+                  "name": "placement_asset_f5c58ca8e79584ca1_1773401914587",
+                  "id": "120238357841550540"
+                },
+                "priority": 1
+              },
+              {
+                "customization_spec": {
+                  "age_max": 65,
+                  "age_min": 13,
+                  "publisher_platforms": [
+                    "facebook"
+                  ],
+                  "facebook_positions": [
+                    "right_hand_column",
+                    "search"
+                  ]
+                },
+                "video_label": {
+                  "name": "placement_asset_fb8bb24590d082ed6_1773401914588",
+                  "id": "120238357841730540"
+                },
+                "body_label": {
+                  "name": "placement_asset_fc12db962cc1196e1_1773401914588",
+                  "id": "120238357841760540"
+                },
+                "link_url_label": {
+                  "name": "placement_asset_f0b6aec33e7b79840_1773401914589",
+                  "id": "120238357841510540"
+                },
+                "title_label": {
+                  "name": "placement_asset_f187b34da2f947875_1773401914589",
+                  "id": "120238357841440540"
+                },
+                "priority": 2
+              },
+              {
+                "customization_spec": {
+                  "age_max": 65,
+                  "age_min": 13
+                },
+                "video_label": {
+                  "name": "placement_asset_f9e6e4a4b134d61b4_1773401914584",
+                  "id": "120238357841740540"
+                },
+                "body_label": {
+                  "name": "placement_asset_fa5d4458c0946b4bd_1773401914584",
+                  "id": "120238357841780540"
+                },
+                "link_url_label": {
+                  "name": "placement_asset_f27be4c00a245e882_1773401914585",
+                  "id": "120238357841530540"
+                },
+                "title_label": {
+                  "name": "placement_asset_fa7e9e822d61314d4_1773401914584",
+                  "id": "120238357841430540"
+                },
+                "priority": 3
+              }
+            ],
+            "optimization_type": "PLACEMENT",
+            "additional_data": {
+              "multi_share_end_card": false,
+              "is_click_to_message": false
+            },
+            "reasons_to_shop": false,
+            "shops_bundle": false
+          },
+          "thumbnail_url": "https://scontent-nrt1-2.xx.fbcdn.net/v/t15.5256-10/650312602_1661383051871494_1806172969311804847_n.jpg?_nc_cat=101&ccb=1-7&_nc_ohc=_eTQqhmJvxQQ7kNvwH0ICzl&_nc_oc=AdpaIX67oF6SwohHzvrLP49Fabn8ZATg7Tb2uFdnHa5S_atrVvO4PVmo-ByrZvhbQQU&_nc_zt=23&_nc_ht=scontent-nrt1-2.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQEymO2e6N_31GgxjOmbwJ_0dCBx3ugvf8GIz_DmGqGLX4EtE10yC13bfFfyO9_51GCPBdkrq317&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=b696e2&_nc_sid=58080a&oh=00_AfxBmBYKxlH0JlETulogQbF5e9sN4guzzUh_A0C23X64IA&oe=69C7C6C5"
+        }
+      },
+      {
+        "id": "120238358001360540",
+        "name": "20260306_Single_Health Screen Bright Colour B - 3",
+        "created_time": "2026-03-13T18:51:50+0700",
+        "updated_time": "2026-03-13T18:54:13+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "2331905717322380",
+          "name": "Pretty healthy? 2026-03-13-c40b25c0fa61c974b7e72eeb9da4b7e4",
+          "object_story_spec": {
+            "page_id": "826292100577332",
+            "instagram_user_id": "17841433852302603",
+            "link_data": {
+              "link": "https://www.doctoranywhere.co.th/da-health-checkup-program?lang=th",
+              "image_hash": "8507e0564146728ae572c5a72b39593d",
+              "call_to_action": {
+                "type": "BOOK_TRAVEL"
+              }
+            }
+          },
+          "asset_feed_spec": {
+            "bodies": [
+              {
+                "text": "เธอดูแลหลายอย่างในชีวิต แต่สุขภาพภายในได้ตรวจจริงหรือยัง? เริ่มต้นเช็กสุขภาพผู้หญิงวันนี้"
+              },
+              {
+                "text": "ตรวจฮอร์โมน หัวใจ และเลือด เพื่อรู้สถานะสุขภาพจริงของคุณ แบบไม่ต้องเดา"
+              },
+              {
+                "text": "การรู้สึกโอเคไม่ใช่การวินิจฉัย ตรวจสุขภาพผู้หญิงแบบครบวงจร เพื่อรู้จริง"
+              },
+              {
+                "text": "ธาตุเหล็ก คอเลสเตอรอล ฮอร์โมน และความเสี่ยงมะเร็ง ครบเรื่องสุขภาพผู้หญิงในแพ็กเดียว"
+              },
+              {
+                "text": "สมองล้า เหนื่อยง่าย ประจำเดือนผิดปกติ อาจเป็นสัญญาณเตือน ตรวจเพื่อรู้คำตอบ"
+              }
+            ],
+            "titles": [
+              {
+                "text": "Pretty healthy?"
+              },
+              {
+                "text": "รู้จริง สบายใจกว่า"
+              },
+              {
+                "text": "สุขภาพแค่รู้สึกว่าโอเค ยังไม่พอ"
+              },
+              {
+                "text": "เช็กสุขภาพให้ครบ ไม่ต้องเดา"
+              },
+              {
+                "text": "เริ่มดูแลสุขภาพผู้หญิงวันนี้"
+              }
+            ],
+            "optimization_type": "DEGREES_OF_FREEDOM"
+          },
+          "image_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t45.1600-4/649130472_122160379898822683_3191534999181278157_n.jpg?_nc_cat=107&ccb=1-7&_nc_sid=d5bd00&_nc_ohc=eln2RodldcYQ7kNvwHRF0SK&_nc_oc=AdqvOpXna2yZAnjUW7hUKLB67Wx_NmPuUwdMPc9N4PXNQ0twkbsZw40EzxHqV2iIryc&_nc_zt=1&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQGsjN7NIWlR6drdrxKej1v-w1Ssz3hkAqJWAjAjv1iyZpXLKH1trhp9R--xnErVqDnNmsPFTV_f&oh=00_AfzaUt1ByP3UdJtdjHuABxkPjyP6TBk516aSBI9IR2CgpA&oe=69C7DAE1",
+          "thumbnail_url": "https://external-nrt1-2.xx.fbcdn.net/emg1/v/t13/8632710152126367098?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQLUxFhTR0OY787gnPXjXF37J17-y9mVTUBJnsZEBUvsPMy8x3GIKSw84_OhVHmtv-0axoN4Ani0JWBvDEwTzhcpjIWOmFjzqVTen3El4EKVkfLejVTuuFf0zf0e-Wl8Jfimf4m15kAybrfdOMK_OElN&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_oc=AdrHGMFXNFio1J5hbGXBRdfdw3LQZUiZVcng8yGMpzZfK6rqaqTxGklRCABiOysrS5A&ccb=13-1&oh=06_Q3-9AcoINFzHgXxVYNq5RQ3yqiJDcr5q_HCEk8quZynil5tk&oe=69C3D2F8&_nc_sid=58080a"
+        }
+      },
+      {
+        "id": "120238358001340540",
+        "name": "20260306_Single_Health Screen Bright Colour B - 2",
+        "created_time": "2026-03-13T18:51:50+0700",
+        "updated_time": "2026-03-13T18:54:07+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "873397692368030",
+          "name": "Pretty healthy? 2026-03-13-db641a65999690e32aa8eafc05db9108",
+          "object_story_spec": {
+            "page_id": "826292100577332",
+            "instagram_user_id": "17841433852302603",
+            "link_data": {
+              "link": "https://www.doctoranywhere.co.th/da-health-checkup-program?lang=th",
+              "image_hash": "b285df110665b860f9612ba8df63a2ac",
+              "call_to_action": {
+                "type": "BOOK_TRAVEL"
+              }
+            }
+          },
+          "asset_feed_spec": {
+            "bodies": [
+              {
+                "text": "เธอดูแลหลายอย่างในชีวิต แต่สุขภาพภายในได้ตรวจจริงหรือยัง? เริ่มต้นเช็กสุขภาพผู้หญิงวันนี้"
+              },
+              {
+                "text": "ตรวจฮอร์โมน หัวใจ และเลือด เพื่อรู้สถานะสุขภาพจริงของคุณ แบบไม่ต้องเดา"
+              },
+              {
+                "text": "การรู้สึกโอเคไม่ใช่การวินิจฉัย ตรวจสุขภาพผู้หญิงแบบครบวงจร เพื่อรู้จริง"
+              },
+              {
+                "text": "ธาตุเหล็ก คอเลสเตอรอล ฮอร์โมน และความเสี่ยงมะเร็ง ครบเรื่องสุขภาพผู้หญิงในแพ็กเดียว"
+              },
+              {
+                "text": "สมองล้า เหนื่อยง่าย ประจำเดือนผิดปกติ อาจเป็นสัญญาณเตือน ตรวจเพื่อรู้คำตอบ"
+              }
+            ],
+            "titles": [
+              {
+                "text": "Pretty healthy?"
+              },
+              {
+                "text": "รู้จริง สบายใจกว่า"
+              },
+              {
+                "text": "สุขภาพแค่รู้สึกว่าโอเค ยังไม่พอ"
+              },
+              {
+                "text": "เช็กสุขภาพให้ครบ ไม่ต้องเดา"
+              },
+              {
+                "text": "เริ่มดูแลสุขภาพผู้หญิงวันนี้"
+              }
+            ],
+            "optimization_type": "DEGREES_OF_FREEDOM"
+          },
+          "image_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t45.1600-4/649515616_122160379916822683_58626435428212000_n.jpg?_nc_cat=107&ccb=1-7&_nc_sid=d5bd00&_nc_ohc=Ev6HR0eqeqQQ7kNvwH79SEa&_nc_oc=Adr_KHk5VpiotjU5WBmCF8hPdE6XsepTLpfaBfSHxtJ5ZFY1m_nyfAOu5bCERrG2yZc&_nc_zt=1&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQETx-_3RLNoyEhsx-XkHhUFmxjShhH4D8RHvdVuKJhNFBbVe3cTLZaCPb0A2o_5AqTKRimttFlW&oh=00_Afxo4c1Yc5kDQa8Ag3C941vMUumU7BlxLeVzjPZwcjiSlw&oe=69C7BAB0",
+          "thumbnail_url": "https://external-nrt1-2.xx.fbcdn.net/emg1/v/t13/7162659768489504814?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQIi2BkrCmAvexW2UpY0hxrjQNTrOxbRyQXy-_7sfMGtPLVdvqPobV_OFmM5IDn2fWos2WWkz1YWUHGU_Us1raGRwlamVSloFlEUs5xq01_-eIi-JxebWY6hG6pVNekeUOiwneBmJFaJcqj6u2KKnYcS&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_oc=AdoRHr8iJEw1gMdmbMGNa6I49LDpWeUeManUtyod_kHwNmqpckraNL9m6ULMM4yCmyM&ccb=13-1&oh=06_Q3-9ASAesD_dqiH-qYCxHrbQaUwOupR27tRiBkA6nw15KQy8&oe=69C3F3C5&_nc_sid=58080a"
+        }
+      },
+      {
+        "id": "120238358001350540",
+        "name": "20260306_Single_Health Screen Bright Colour B - 1",
+        "created_time": "2026-03-13T18:51:50+0700",
+        "updated_time": "2026-03-13T18:53:58+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "1632729704417347",
+          "name": "Pretty healthy? 2026-03-13-f07ce510096390854ab4e1aef023c5ca",
+          "object_story_spec": {
+            "page_id": "826292100577332",
+            "instagram_user_id": "17841433852302603",
+            "link_data": {
+              "link": "https://www.doctoranywhere.co.th/da-health-checkup-program?lang=th",
+              "image_hash": "8174e3b10be833240c153c0d7de3f1ea",
+              "call_to_action": {
+                "type": "BOOK_TRAVEL"
+              }
+            }
+          },
+          "asset_feed_spec": {
+            "bodies": [
+              {
+                "text": "เธอดูแลหลายอย่างในชีวิต แต่สุขภาพภายในได้ตรวจจริงหรือยัง? เริ่มต้นเช็กสุขภาพผู้หญิงวันนี้"
+              },
+              {
+                "text": "ตรวจฮอร์โมน หัวใจ และเลือด เพื่อรู้สถานะสุขภาพจริงของคุณ แบบไม่ต้องเดา"
+              },
+              {
+                "text": "การรู้สึกโอเคไม่ใช่การวินิจฉัย ตรวจสุขภาพผู้หญิงแบบครบวงจร เพื่อรู้จริง"
+              },
+              {
+                "text": "ธาตุเหล็ก คอเลสเตอรอล ฮอร์โมน และความเสี่ยงมะเร็ง ครบเรื่องสุขภาพผู้หญิงในแพ็กเดียว"
+              },
+              {
+                "text": "สมองล้า เหนื่อยง่าย ประจำเดือนผิดปกติ อาจเป็นสัญญาณเตือน ตรวจเพื่อรู้คำตอบ"
+              }
+            ],
+            "titles": [
+              {
+                "text": "Pretty healthy?"
+              },
+              {
+                "text": "รู้จริง สบายใจกว่า"
+              },
+              {
+                "text": "สุขภาพแค่รู้สึกว่าโอเค ยังไม่พอ"
+              },
+              {
+                "text": "เช็กสุขภาพให้ครบ ไม่ต้องเดา"
+              },
+              {
+                "text": "เริ่มดูแลสุขภาพผู้หญิงวันนี้"
+              }
+            ],
+            "optimization_type": "DEGREES_OF_FREEDOM"
+          },
+          "image_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t45.1600-4/648554726_122160379934822683_5984821325819577085_n.jpg?_nc_cat=111&ccb=1-7&_nc_sid=d5bd00&_nc_ohc=FBNSU618zp0Q7kNvwGy8FhD&_nc_oc=AdqPpdLbkk8wUPjiqfmBLWaQmPCwTXoR02_xW4ADhRDqg1v5ql91wKEajePvsxljYy8&_nc_zt=1&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQEndgOoYQLGMzE7UQyQH56C5lr3SgsLXX2r93Vg8XtWKuwIyXM6z0jNMqnjf0TnBaTcG6jhOrFo&oh=00_AfylNMEW7DzwzuMxnayHZiA6Z2YkCeBZvNbvyo_cN4I8vA&oe=69C7BB15",
+          "thumbnail_url": "https://external-nrt1-2.xx.fbcdn.net/emg1/v/t13/4356627190945685605?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQLSJNDzxnKMt9w9o2KtfM9aXSavT9n0Hdh22_rTh4F4vASFRwHKymalnFlk56Lo4CZaTmAjK1LJsAK-MDAr_6ZfCxRKPSi5ytHKPwM20MRTQ-rVDnoCIntcGxYvzEn768ajMpC2Zt7FeWrzPotnTsOD&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_oc=Adou3SbESoYFZpPEy6jQCVgkZ7fe9JBso2xMwlE7y1tzgR5HiU7nBEp7dQwIteIugD8&ccb=13-1&oh=06_Q3-9AYIj8joZ9wyQd9wE7AN2OL41QJQroIbFYzpw11b0zicb&oe=69C3EDB5&_nc_sid=58080a"
+        }
+      },
+      {
+        "id": "120238357688250540",
+        "name": "20260306_Single_Health Screen Lifestyle B - 3",
+        "created_time": "2026-03-13T18:39:52+0700",
+        "updated_time": "2026-03-13T18:52:43+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "917638067416032",
+          "name": "Pretty healthy? 2026-03-13-9dc2930e478ebdd9dafbb212a9708e29",
+          "object_story_spec": {
+            "page_id": "826292100577332",
+            "instagram_user_id": "17841433852302603",
+            "link_data": {
+              "link": "https://www.doctoranywhere.co.th/da-health-checkup-program?lang=th",
+              "image_hash": "00796430e2bfcb4fc07848726fd1f0d7",
+              "call_to_action": {
+                "type": "BOOK_TRAVEL"
+              }
+            }
+          },
+          "asset_feed_spec": {
+            "bodies": [
+              {
+                "text": "เธอดูแลหลายอย่างในชีวิต แต่สุขภาพภายในได้ตรวจจริงหรือยัง? เริ่มต้นเช็กสุขภาพผู้หญิงวันนี้"
+              },
+              {
+                "text": "ตรวจฮอร์โมน หัวใจ และเลือด เพื่อรู้สถานะสุขภาพจริงของคุณ แบบไม่ต้องเดา"
+              },
+              {
+                "text": "การรู้สึกโอเคไม่ใช่การวินิจฉัย ตรวจสุขภาพผู้หญิงแบบครบวงจร เพื่อรู้จริง"
+              },
+              {
+                "text": "ธาตุเหล็ก คอเลสเตอรอล ฮอร์โมน และความเสี่ยงมะเร็ง ครบเรื่องสุขภาพผู้หญิงในแพ็กเดียว"
+              },
+              {
+                "text": "สมองล้า เหนื่อยง่าย ประจำเดือนผิดปกติ อาจเป็นสัญญาณเตือน ตรวจเพื่อรู้คำตอบ"
+              }
+            ],
+            "titles": [
+              {
+                "text": "Pretty healthy?"
+              },
+              {
+                "text": "รู้จริง สบายใจกว่า"
+              },
+              {
+                "text": "สุขภาพแค่รู้สึกว่าโอเค ยังไม่พอ"
+              },
+              {
+                "text": "เช็กสุขภาพให้ครบ ไม่ต้องเดา"
+              },
+              {
+                "text": "เริ่มดูแลสุขภาพผู้หญิงวันนี้"
+              }
+            ],
+            "optimization_type": "DEGREES_OF_FREEDOM"
+          },
+          "image_url": "https://scontent-nrt1-1.xx.fbcdn.net/v/t45.1600-4/649615617_122160697610822683_5592255371427642342_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=d5bd00&_nc_ohc=wtnFXC5DlZMQ7kNvwEM8JDj&_nc_oc=AdqzKQTccR2paBLbHW4N7P2oiNCoz7JUh3TLZikT15DA2kxcP1aBAeEdRsL6gGTDpf0&_nc_zt=1&_nc_ht=scontent-nrt1-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQGPHDaNWlXJywpH2kLGDOenNeUW_P-yjEiRgHMMjG1GgKNrWPrD8Eh4oyZrO9yB2YiUQl8fn2oy&oh=00_AfyE5IG4ilGFiFWDFfjeiGgQkZwRqmM3nJoEmszBTPDS1g&oe=69C7C0F9",
+          "thumbnail_url": "https://external-nrt1-2.xx.fbcdn.net/emg1/v/t13/13002903899691480454?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQJ6yvhouxr5LymhDWS31xLHWVrmx-p2mVccZuRDaeMGQaqpqZ4awPwr9TVuIQdDJkq95qsJrIMUuQCoLpqqi3PQGn5lCKOn2w1MAZrKoGERcuQXklt5KWeCxYNiWkPi-OSVpNx5nEZIU5k9rDJV0QYy&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_oc=Adrm_aBdVKA-aS2sLJwMVZdQn6quHWR8b381uQU4IdQqbfGaml0hZw9x7t4g2OIcFos&ccb=13-1&oh=06_Q3-9AXEteMXWmUmrAii25qjMsZOlyRRE4BTQ_DMZp2z1axEp&oe=69C3C45B&_nc_sid=58080a"
+        }
+      },
+      {
+        "id": "120238357662980540",
+        "name": "20260306_Single_Health Screen Lifestyle B - 2",
+        "created_time": "2026-03-13T18:39:52+0700",
+        "updated_time": "2026-03-13T18:52:43+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "4261488034072545",
+          "name": "Pretty healthy? 2026-03-13-af0c4432e1a0c061a8fcc8c1f40cf5c6",
+          "object_story_spec": {
+            "page_id": "826292100577332",
+            "instagram_user_id": "17841433852302603",
+            "link_data": {
+              "link": "https://www.doctoranywhere.co.th/da-health-checkup-program?lang=th",
+              "image_hash": "802ffdf560f41437973aa139e952518e",
+              "call_to_action": {
+                "type": "BOOK_TRAVEL"
+              }
+            }
+          },
+          "asset_feed_spec": {
+            "bodies": [
+              {
+                "text": "เธอดูแลหลายอย่างในชีวิต แต่สุขภาพภายในได้ตรวจจริงหรือยัง? เริ่มต้นเช็กสุขภาพผู้หญิงวันนี้"
+              },
+              {
+                "text": "ตรวจฮอร์โมน หัวใจ และเลือด เพื่อรู้สถานะสุขภาพจริงของคุณ แบบไม่ต้องเดา"
+              },
+              {
+                "text": "การรู้สึกโอเคไม่ใช่การวินิจฉัย ตรวจสุขภาพผู้หญิงแบบครบวงจร เพื่อรู้จริง"
+              },
+              {
+                "text": "ธาตุเหล็ก คอเลสเตอรอล ฮอร์โมน และความเสี่ยงมะเร็ง ครบเรื่องสุขภาพผู้หญิงในแพ็กเดียว"
+              },
+              {
+                "text": "สมองล้า เหนื่อยง่าย ประจำเดือนผิดปกติ อาจเป็นสัญญาณเตือน ตรวจเพื่อรู้คำตอบ"
+              }
+            ],
+            "titles": [
+              {
+                "text": "Pretty healthy?"
+              },
+              {
+                "text": "รู้จริง สบายใจกว่า"
+              },
+              {
+                "text": "สุขภาพแค่รู้สึกว่าโอเค ยังไม่พอ"
+              },
+              {
+                "text": "เช็กสุขภาพให้ครบ ไม่ต้องเดา"
+              },
+              {
+                "text": "เริ่มดูแลสุขภาพผู้หญิงวันนี้"
+              }
+            ],
+            "optimization_type": "DEGREES_OF_FREEDOM"
+          },
+          "image_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t45.1600-4/649424227_122160697592822683_5610159596683991231_n.jpg?_nc_cat=110&ccb=1-7&_nc_sid=d5bd00&_nc_ohc=jjpdNei0anMQ7kNvwGiYLZU&_nc_oc=Adp-XjQezSJsKjryZKOD7jGa-IfCYndkO7IVPcaMRMHeIZfjnlyGXV_FmodYmKXFQgM&_nc_zt=1&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQGCC-CGD9vqKeJ2pLyH305poi3pCnENfQDFZ5YLcXrOwwTkHMyytYpPIk_kIlO3H21Oo6Usm8mw&oh=00_AfwASdcODWhxxWMpVbLyurLJdMokQMBmHI2tzYLCFRW7SQ&oe=69C7D64E",
+          "thumbnail_url": "https://external-nrt1-2.xx.fbcdn.net/emg1/v/t13/6422533609922501400?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQJOM0LlTELTLM8RDcKgUKDwen7vVFa5tjW4_i182b5ytTlYK_-Dis0UYTysy6l0pyKyYidsyUO3LQ2kErZu8VcbTLtlQL3Nk4t9GRX5JJkjh2uwH_p0HjGKPHiDNbE65w6QOr1GKROttKj7shZfBxJC&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_oc=AdopWgZtj4owWevMbztoUGh3zSI-IZ_inLlcWqQRthPBbK1ar8ciCSzqHpYdaY7oWSI&ccb=13-1&oh=06_Q3-9AbCBV8DA8oIz--lancd5_X0rQKhBKqmsoUGY0-TF2S4v&oe=69C3F0A5&_nc_sid=58080a"
+        }
+      },
+      {
+        "id": "120238357506400540",
+        "name": "20260306_Single_Health Screen Lifestyle B - 1",
+        "created_time": "2026-03-13T18:39:52+0700",
+        "updated_time": "2026-03-13T18:52:43+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "1983848018867278",
+          "name": "Pretty healthy? 2026-03-13-e1d71ac041f81a3f9a028ae03b2b0f5b",
+          "object_story_spec": {
+            "page_id": "826292100577332",
+            "instagram_user_id": "17841433852302603",
+            "link_data": {
+              "link": "https://www.doctoranywhere.co.th/da-health-checkup-program?lang=th",
+              "image_hash": "8359700d003ce040694cb0962dc125a1",
+              "call_to_action": {
+                "type": "BOOK_TRAVEL"
+              }
+            }
+          },
+          "asset_feed_spec": {
+            "bodies": [
+              {
+                "text": "เธอดูแลหลายอย่างในชีวิต แต่สุขภาพภายในได้ตรวจจริงหรือยัง? เริ่มต้นเช็กสุขภาพผู้หญิงวันนี้"
+              },
+              {
+                "text": "ตรวจฮอร์โมน หัวใจ และเลือด เพื่อรู้สถานะสุขภาพจริงของคุณ แบบไม่ต้องเดา"
+              },
+              {
+                "text": "การรู้สึกโอเคไม่ใช่การวินิจฉัย ตรวจสุขภาพผู้หญิงแบบครบวงจร เพื่อรู้จริง"
+              },
+              {
+                "text": "ธาตุเหล็ก คอเลสเตอรอล ฮอร์โมน และความเสี่ยงมะเร็ง ครบเรื่องสุขภาพผู้หญิงในแพ็กเดียว"
+              },
+              {
+                "text": "สมองล้า เหนื่อยง่าย ประจำเดือนผิดปกติ อาจเป็นสัญญาณเตือน ตรวจเพื่อรู้คำตอบ"
+              }
+            ],
+            "titles": [
+              {
+                "text": "Pretty healthy?"
+              },
+              {
+                "text": "รู้จริง สบายใจกว่า"
+              },
+              {
+                "text": "สุขภาพแค่รู้สึกว่าโอเค ยังไม่พอ"
+              },
+              {
+                "text": "เช็กสุขภาพให้ครบ ไม่ต้องเดา"
+              },
+              {
+                "text": "เริ่มดูแลสุขภาพผู้หญิงวันนี้"
+              }
+            ],
+            "optimization_type": "DEGREES_OF_FREEDOM"
+          },
+          "image_url": "https://scontent-nrt1-1.xx.fbcdn.net/v/t45.1600-4/649624760_122160697628822683_1795445165635265301_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=d5bd00&_nc_ohc=QIRQcaHcOTsQ7kNvwEjMzOK&_nc_oc=AdoeQACHQkPv70CqMVpHRRHThLUNTeaTlKInuvGzLX6Nq__cR2E_ckzL5tdr2aSSGhI&_nc_zt=1&_nc_ht=scontent-nrt1-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQHIBp_u9LheRCQ1jZ7jbkbBNKkJ-rXD-G3SIeypJBrZv7HZ99TYrCIdJKOLgjYlUf-VltpHo6Ow&oh=00_Afza6TYM3bScKyzOXk5iB1oN4YCcwVdwaqLo2dSbCDaRdQ&oe=69C7EF1C",
+          "thumbnail_url": "https://external-nrt1-2.xx.fbcdn.net/emg1/v/t13/11317155674388747652?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQLPdlX0qqQtWeZ3I7z62qW_9sKQb2RgQgadnRkb5S3w8pYrJIqixn1sxVvnn2U3wIPXUlWYMO2NovpnaFfql3_C9o8j4x1lP9ES-8UfKzSf4V_iI-OnjYh2PpVdJXWFYzwQqFaQ67lZeN-DKWcm9DS3&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_oc=AdopScMzWPtqwsFQjjL1dwAgCdHQvD_D67kAoVO9naDFOyhzVv-R_PW4R5Btw9Yhx4U&ccb=13-1&oh=06_Q3-9ATMoPyCgSdFUezod-wRDnKGFDcb98C-oO-LUx8-XFK6S&oe=69C3CFCD&_nc_sid=58080a"
+        }
+      },
+      {
+        "id": "120238336928800540",
+        "name": "20260306_Carousel_Health Screen Lifestyle B",
+        "created_time": "2026-03-13T18:39:52+0700",
+        "updated_time": "2026-03-13T18:52:43+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "1257669659146680",
+          "name": "Doctor Anywhere - Thailand 2026-03-13-a24e0f74add7a318f01bb2ef63d35a02",
+          "object_story_spec": {
+            "page_id": "826292100577332",
+            "instagram_user_id": "17841433852302603",
+            "link_data": {
+              "link": "https://www.doctoranywhere.co.th/da-health-checkup-program?lang=th",
+              "call_to_action": {
+                "type": "BOOK_TRAVEL"
+              },
+              "child_attachments": [
+                {
+                  "link": "https://www.doctoranywhere.co.th/",
+                  "image_hash": "fdaf3a930e12cb265fd1944c63ee9524",
+                  "name": "Pretty healthy?",
+                  "call_to_action": {
+                    "type": "BOOK_TRAVEL"
+                  }
+                },
+                {
+                  "link": "https://www.doctoranywhere.co.th/",
+                  "image_hash": "0dc18c73c95397a1179894a92f000085",
+                  "name": "รู้จริง สบายใจกว่า",
+                  "call_to_action": {
+                    "type": "BOOK_TRAVEL"
+                  }
+                },
+                {
+                  "link": "https://www.doctoranywhere.co.th/",
+                  "image_hash": "1f9edddb2deabf391e53ad8280633a59",
+                  "name": "สุขภาพแค่รู้สึกว่าโอเค ยังไม่พอ",
+                  "call_to_action": {
+                    "type": "BOOK_TRAVEL"
+                  }
+                },
+                {
+                  "link": "https://www.doctoranywhere.co.th/",
+                  "image_hash": "067d81edc4242b0d837f2570d15bb77b",
+                  "name": "เช็กสุขภาพให้ครบ ไม่ต้องเดา",
+                  "call_to_action": {
+                    "type": "BOOK_TRAVEL"
+                  }
+                }
+              ],
+              "multi_share_end_card": true,
+              "multi_share_optimized": true
+            }
+          },
+          "asset_feed_spec": {
+            "bodies": [
+              {
+                "text": "เธอดูแลหลายอย่างในชีวิต แต่สุขภาพภายในได้ตรวจจริงหรือยัง? เริ่มต้นเช็กสุขภาพผู้หญิงวันนี้"
+              },
+              {
+                "text": "ตรวจฮอร์โมน หัวใจ และเลือด เพื่อรู้สถานะสุขภาพจริงของคุณ แบบไม่ต้องเดา"
+              },
+              {
+                "text": "การรู้สึกโอเคไม่ใช่การวินิจฉัย ตรวจสุขภาพผู้หญิงแบบครบวงจร เพื่อรู้จริง"
+              },
+              {
+                "text": "ธาตุเหล็ก คอเลสเตอรอล ฮอร์โมน และความเสี่ยงมะเร็ง ครบเรื่องสุขภาพผู้หญิงในแพ็กเดียว"
+              },
+              {
+                "text": "สมองล้า เหนื่อยง่าย ประจำเดือนผิดปกติ อาจเป็นสัญญาณเตือน ตรวจเพื่อรู้คำตอบ"
+              }
+            ],
+            "optimization_type": "DEGREES_OF_FREEDOM"
+          },
+          "thumbnail_url": "https://external-nrt1-2.xx.fbcdn.net/emg1/v/t13/6698143761119532719?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQIKHw_CQ4nsA02LQOgmzr7FeesBcf8iiLTsQstFv4RV6T5Qf0iCFFsuZ4ems3qolKr3jN-OpjI3uwYcsh1dZeAnGWmHLEj3TlQ-V6QIzpec4VWu3xdzKwtW4CyLNPwaUMs6-GZPFtSX3FfBl8akxUUa&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_oc=AdoRkMicm71vFEOad4kUsfxSRqs8JFYGBpFr-qZSdKgxDGRzZ9VOqJPatAc3Q8RsxVY&ccb=13-1&oh=06_Q3-9AfCUboW6rH2FBP-MGsXNXQY5J43ZYOlsAAziX9CD19nx&oe=69C3F76A&_nc_sid=58080a"
+        }
+      },
+      {
+        "id": "120238336421230540",
+        "name": "20260313_VDO_Manifesto",
+        "created_time": "2026-03-13T12:50:48+0700",
+        "updated_time": "2026-03-13T12:54:16+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "26464562523139419",
+          "name": "Pretty healthy? 2026-03-12-70e0f2a4d4766004f644a2cdfaf3ae88",
+          "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/652067613_933350686342825_7003877030682043780_n.jpg?_nc_cat=107&ccb=1-7&_nc_ohc=_6pZ_1LmqLYQ7kNvwFT18Zm&_nc_oc=AdqaZ26KlGn4aBXMv5-cIW6PozF0nZd1-d7Er_c69Z4g7JoSvzDAIYL81BS0Z4eGxJU&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQG2Mpov9LzeNdgTxqN0-cBPuGMMvzHfA3WOgQZkS-4TQO0uqiGHl075qtNmwVoCYYGLduwbWA7o&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=5fad0e&_nc_sid=58080a&oh=00_AfyXhXsunlobndcnDWRr16pxdZ_456ZWOG0xp3TjFDUKJQ&oe=69C7BBBA",
+          "video_id": "1244124094563482"
+        }
+      },
+      {
+        "id": "120238336421260540",
+        "name": "20260313_VDO_Manifesto",
+        "created_time": "2026-03-13T12:50:48+0700",
+        "updated_time": "2026-03-13T12:53:01+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "1246098310989263",
+          "name": "Pretty healthy? 2026-03-12-d8503f1290edb0ec974b311a5dc5188d",
+          "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/652067613_933350686342825_7003877030682043780_n.jpg?_nc_cat=107&ccb=1-7&_nc_ohc=_6pZ_1LmqLYQ7kNvwFT18Zm&_nc_oc=AdqaZ26KlGn4aBXMv5-cIW6PozF0nZd1-d7Er_c69Z4g7JoSvzDAIYL81BS0Z4eGxJU&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQF5ewChB1VjEDBl7134AKHrBg3k1fAXrsjv0Pd8xz2BiNZ6CqIINFAiLdVfmXvRGWSkHfQNG9tw&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=5fad0e&_nc_sid=58080a&oh=00_AfxMPvlNbUkwO-6wBOLwUA9mXwvuixZDVDwuJY0rc7f1hw&oe=69C7BBBA",
+          "video_id": "1382651870567447"
+        }
+      },
+      {
+        "id": "120238336421250540",
+        "name": "20260313_VDO_Manifesto",
+        "created_time": "2026-03-13T12:50:48+0700",
+        "updated_time": "2026-03-13T12:53:00+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "2103720900201019",
+          "name": "Pretty healthy? 2026-03-12-86b85cf8b08031e5dce2cf5d986d913e",
+          "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/652067613_933350686342825_7003877030682043780_n.jpg?_nc_cat=107&ccb=1-7&_nc_ohc=_6pZ_1LmqLYQ7kNvwFT18Zm&_nc_oc=AdqaZ26KlGn4aBXMv5-cIW6PozF0nZd1-d7Er_c69Z4g7JoSvzDAIYL81BS0Z4eGxJU&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQED8aZ5pHBdLlUUPQuZKpr1pqfzw-sTOS8Jz0-PCQxTKFn-YejdJ-rOaSvPpoTPGA10811xwwzc&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=5fad0e&_nc_sid=58080a&oh=00_AfwQ42b00ApW76jxpASMcUkTgMV2Y4ZmZKVghhfikgqiyA&oe=69C7BBBA",
+          "video_id": "2060277718151406"
+        }
+      },
+      {
+        "id": "120238336421240540",
+        "name": "20260313_VDO_Manifesto",
+        "created_time": "2026-03-13T12:50:48+0700",
+        "updated_time": "2026-03-13T12:52:55+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "1349113367051879",
+          "name": "Pretty healthy? 2026-03-12-29b8c28785f20a73b422eed67358b181",
+          "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/652067613_933350686342825_7003877030682043780_n.jpg?_nc_cat=107&ccb=1-7&_nc_ohc=_6pZ_1LmqLYQ7kNvwFT18Zm&_nc_oc=AdqaZ26KlGn4aBXMv5-cIW6PozF0nZd1-d7Er_c69Z4g7JoSvzDAIYL81BS0Z4eGxJU&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQH42F0UfDe4rirqdcz2Gapm64mxe4q8AF5Ij34W_yxiit3gZaBDa7HjWDRtz88t4egvgfRxsVCO&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=5fad0e&_nc_sid=58080a&oh=00_AfwyUD746XuhdQBRt7fc3VrMMd_xQfFnYRMDwzLCwZCTXA&oe=69C7BBBA",
+          "video_id": "2201239063964633"
+        }
+      },
+      {
+        "id": "120238336021730540",
+        "name": "20260313_VDO_Manifesto",
+        "created_time": "2026-03-13T12:29:10+0700",
+        "updated_time": "2026-03-13T12:40:07+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "1292873276073212",
+          "name": "{{product.name}} 2026-03-12-5cc855600893ae5ce26d9e75abd0af58",
+          "object_story_spec": {
+            "page_id": "826292100577332",
+            "instagram_user_id": "17841433852302603"
+          },
+          "asset_feed_spec": {
+            "videos": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fd337859bcfda4f69_1773379659905",
+                    "id": "120238335996240540"
+                  }
+                ],
+                "video_id": "1582908166158156",
+                "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/652067613_933350686342825_7003877030682043780_n.jpg?stp=dst-jpg_s160x160_tt6&_nc_cat=107&ccb=1-7&_nc_sid=b696e2&_nc_ohc=_6pZ_1LmqLYQ7kNvwFT18Zm&_nc_oc=AdqaZ26KlGn4aBXMv5-cIW6PozF0nZd1-d7Er_c69Z4g7JoSvzDAIYL81BS0Z4eGxJU&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQHKGglRz4IGgsMNuv413IbNvaqYegGKhpXnBYcNK2aMChlPgSlSE4vBoNzsJdzAXAEvwX3C6t2L&oh=00_AfxB9Aie83oxDFZsCpmp2jh5cXyMDqcaO1C9CWY2DatoQQ&oe=69C7BBBA"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f4c9df79fce0766cd_1773379659908",
+                    "id": "120238335996030540"
+                  },
+                  {
+                    "name": "placement_asset_fc9f76ca0e5746fb9_1773379621270",
+                    "id": "120238335996050540"
+                  }
+                ],
+                "video_id": "2181741912639009",
+                "thumbnail_url": "https://scontent-nrt1-1.xx.fbcdn.net/v/t15.5256-10/650411248_950713637403998_5596803074667786654_n.jpg?stp=dst-jpg_s160x160_tt6&_nc_cat=109&ccb=1-7&_nc_sid=b696e2&_nc_ohc=zJgAKrJdDkgQ7kNvwGABPHR&_nc_oc=Adqfpp4TPtyEeLYcIvLcukJIwSHbshrBpkGFTmrKg5m3NOKASb_yHTMZLWTypAS0I7Y&_nc_zt=23&_nc_ht=scontent-nrt1-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQELklGzq0t7fpbyb-Ai8dLcmt6_59AB35jLlAcwqTWR2FFNbH6ZGVSv6MRYCBlSDH3l4Ej-m-uT&oh=00_Afw3dn6W_W3kk0pqXxzF_lQURgJpvA0jBWytRHtSV9Zr3A&oe=69C7BF86"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fe2ea6dbabd0a490f_1773379659911",
+                    "id": "120238335996040540"
+                  },
+                  {
+                    "name": "placement_asset_f68b5930732028205_1773379621327",
+                    "id": "120238335996060540"
+                  }
+                ],
+                "video_id": "766218382955362",
+                "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/650021426_1602361987641306_4435666787554531665_n.jpg?stp=dst-jpg_p168x128_tt6&_nc_cat=111&ccb=1-7&_nc_sid=b696e2&_nc_ohc=4anLyagxwW4Q7kNvwGQCzU3&_nc_oc=AdpxOHJjZRIwYGjvrH5a2_EBjs0Y_ZCN2s05ZtXqRC_3xtrgHtdsn2GaY3Jcxn-z8vo&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQHx2GVGCzvMP19QF4sBPvIgCkDAEfWrWYkXIKZzs4Z90vqSogntMlkqrx_6Fp5HR-JK_52Qc_B6&oh=00_Afwtvy-S6D47GvHkRIGdr7_wze6yni65ZHsjmw8_C0cACQ&oe=69C7EF6F"
+              }
+            ],
+            "bodies": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f3cf77fe862cb38c3_1773379659909",
+                    "id": "120238335996110540"
+                  },
+                  {
+                    "name": "placement_asset_f3fc36a045d519904_1773379659905",
+                    "id": "120238335996120540"
+                  },
+                  {
+                    "name": "placement_asset_fbc25b7d0b64695ea_1773379659912",
+                    "id": "120238335996140540"
+                  }
+                ],
+                "text": "เธอเป็นคนที่คอยดูแลทุกคนอย่างดี แต่สุขภาพของเธอล่ะ เช็กครั้งสุดท้ายเมื่อไร?\nปรึกษาแพทย์ได้ที่ Doctor Anywhere"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f3cf77fe862cb38c3_1773379659909",
+                    "id": "120238335996110540"
+                  },
+                  {
+                    "name": "placement_asset_f3fc36a045d519904_1773379659905",
+                    "id": "120238335996120540"
+                  },
+                  {
+                    "name": "placement_asset_fbc25b7d0b64695ea_1773379659912",
+                    "id": "120238335996140540"
+                  }
+                ],
+                "text": "ผู้หญิงทุกคนสมควรได้รับความมั่นใจในสุขภาพ มากกว่าการแค่รู้สึกว่าโอเค\nDoctor Anywhere พร้อมดูแลสุขภาพผู้หญิงทุกท่านให้สุขภาพดีอย่างแท้จริง"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f3cf77fe862cb38c3_1773379659909",
+                    "id": "120238335996110540"
+                  },
+                  {
+                    "name": "placement_asset_f3fc36a045d519904_1773379659905",
+                    "id": "120238335996120540"
+                  },
+                  {
+                    "name": "placement_asset_fbc25b7d0b64695ea_1773379659912",
+                    "id": "120238335996140540"
+                  }
+                ],
+                "text": "เพราะสุขภาพดีแค่รู้สึกอาจไม่พอ ตรวจสุขภาพผู้หญิงและพูดคุยกับแพทย์ได้ง่ายๆ\nปรึกษาแพทย์ได้ที่ Doctor Anywhere"
+              }
+            ],
+            "call_to_action_types": [
+              "LEARN_MORE"
+            ],
+            "descriptions": [
+              {
+                "text": "Schedule a comprehensive health screening and optional add on imaging tests for a thorough checkup of your health, at Singapore's one-stop health screening and imaging centre in Orchard."
+              }
+            ],
+            "link_urls": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_febb80486fd25db7e_1773379659910",
+                    "id": "120238335996340540"
+                  },
+                  {
+                    "name": "placement_asset_f1886369f07e9089f_1773379659907",
+                    "id": "120238335996350540"
+                  },
+                  {
+                    "name": "placement_asset_f4ac0f0bf1cf391c5_1773379659912",
+                    "id": "120238335996370540"
+                  }
+                ],
+                "website_url": "https://www.doctoranywhere.co.th/?lang=th",
+                "display_url": ""
+              }
+            ],
+            "titles": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fb095db607c370423_1773379659910",
+                    "id": "120238335996080540"
+                  },
+                  {
+                    "name": "placement_asset_f7e3e982c7efa0fd1_1773379659912",
+                    "id": "120238335996160540"
+                  },
+                  {
+                    "name": "placement_asset_f556cb5c7605a7931_1773379659905",
+                    "id": "120238335996390540"
+                  }
+                ],
+                "text": "โปรแกรมตรวจสุขภาพเพื่อผู้หญิง"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fb095db607c370423_1773379659910",
+                    "id": "120238335996080540"
+                  },
+                  {
+                    "name": "placement_asset_f7e3e982c7efa0fd1_1773379659912",
+                    "id": "120238335996160540"
+                  },
+                  {
+                    "name": "placement_asset_f556cb5c7605a7931_1773379659905",
+                    "id": "120238335996390540"
+                  }
+                ],
+                "text": "สุขภาพดีอย่างมั่นใจ"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fb095db607c370423_1773379659910",
+                    "id": "120238335996080540"
+                  },
+                  {
+                    "name": "placement_asset_f7e3e982c7efa0fd1_1773379659912",
+                    "id": "120238335996160540"
+                  },
+                  {
+                    "name": "placement_asset_f556cb5c7605a7931_1773379659905",
+                    "id": "120238335996390540"
+                  }
+                ],
+                "text": "Pretty healthy?"
+              }
+            ],
+            "ad_formats": [
+              "SINGLE_VIDEO"
+            ],
+            "asset_customization_rules": [
+              {
+                "customization_spec": {
+                  "age_max": 65,
+                  "age_min": 13,
+                  "publisher_platforms": [
+                    "facebook",
+                    "instagram",
+                    "audience_network",
+                    "messenger"
+                  ],
+                  "facebook_positions": [
+                    "facebook_reels",
+                    "facebook_reels_overlay",
+                    "story"
+                  ],
+                  "instagram_positions": [
+                    "story",
+                    "reels"
+                  ],
+                  "messenger_positions": [
+                    "story"
+                  ],
+                  "audience_network_positions": [
+                    "classic",
+                    "rewarded_video"
+                  ]
+                },
+                "video_label": {
+                  "name": "placement_asset_f4c9df79fce0766cd_1773379659908",
+                  "id": "120238335996030540"
+                },
+                "body_label": {
+                  "name": "placement_asset_f3cf77fe862cb38c3_1773379659909",
+                  "id": "120238335996110540"
+                },
+                "link_url_label": {
+                  "name": "placement_asset_febb80486fd25db7e_1773379659910",
+                  "id": "120238335996340540"
+                },
+                "title_label": {
+                  "name": "placement_asset_fb095db607c370423_1773379659910",
+                  "id": "120238335996080540"
+                },
+                "priority": 1
+              },
+              {
+                "customization_spec": {
+                  "age_max": 65,
+                  "age_min": 13,
+                  "publisher_platforms": [
+                    "facebook"
+                  ],
+                  "facebook_positions": [
+                    "search"
+                  ]
+                },
+                "video_label": {
+                  "name": "placement_asset_fe2ea6dbabd0a490f_1773379659911",
+                  "id": "120238335996040540"
+                },
+                "body_label": {
+                  "name": "placement_asset_fbc25b7d0b64695ea_1773379659912",
+                  "id": "120238335996140540"
+                },
+                "link_url_label": {
+                  "name": "placement_asset_f4ac0f0bf1cf391c5_1773379659912",
+                  "id": "120238335996370540"
+                },
+                "title_label": {
+                  "name": "placement_asset_f7e3e982c7efa0fd1_1773379659912",
+                  "id": "120238335996160540"
+                },
+                "priority": 2
+              },
+              {
+                "customization_spec": {
+                  "age_max": 65,
+                  "age_min": 13
+                },
+                "video_label": {
+                  "name": "placement_asset_fd337859bcfda4f69_1773379659905",
+                  "id": "120238335996240540"
+                },
+                "body_label": {
+                  "name": "placement_asset_f3fc36a045d519904_1773379659905",
+                  "id": "120238335996120540"
+                },
+                "link_url_label": {
+                  "name": "placement_asset_f1886369f07e9089f_1773379659907",
+                  "id": "120238335996350540"
+                },
+                "title_label": {
+                  "name": "placement_asset_f556cb5c7605a7931_1773379659905",
+                  "id": "120238335996390540"
+                },
+                "priority": 3
+              }
+            ],
+            "optimization_type": "PLACEMENT",
+            "additional_data": {
+              "multi_share_end_card": false,
+              "is_click_to_message": false
+            },
+            "reasons_to_shop": false,
+            "shops_bundle": false
+          },
+          "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/652067613_933350686342825_7003877030682043780_n.jpg?_nc_cat=107&ccb=1-7&_nc_ohc=_6pZ_1LmqLYQ7kNvwFT18Zm&_nc_oc=AdqaZ26KlGn4aBXMv5-cIW6PozF0nZd1-d7Er_c69Z4g7JoSvzDAIYL81BS0Z4eGxJU&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQFDYxDjmRG6xB17aOcg9tpeePADivNBNx2JGsY2hnMJRs9Ma8hLJBNlPeWXU8PqHd40_PGBW7sr&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=b696e2&_nc_sid=58080a&oh=00_AfxAojx6NsFEwCULAAl7JqbWSPWRFaR8cTbN6R0qYZAI_g&oe=69C7BBBA"
+        }
+      },
+      {
+        "id": "120238335757740540",
+        "name": "20260313_VDO_Manifesto",
+        "created_time": "2026-03-13T12:28:18+0700",
+        "updated_time": "2026-03-13T12:39:44+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "1435171204920296",
+          "name": "{{product.name}} 2026-03-12-add4117523fb1bc40820da4c77ddea69",
+          "object_story_spec": {
+            "page_id": "826292100577332",
+            "instagram_user_id": "17841433852302603"
+          },
+          "asset_feed_spec": {
+            "videos": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f4c9df79fce0766cd_1773379659908",
+                    "id": "120238335996030540"
+                  },
+                  {
+                    "name": "placement_asset_fc9f76ca0e5746fb9_1773379621270",
+                    "id": "120238335996050540"
+                  }
+                ],
+                "video_id": "932214829355273",
+                "thumbnail_url": "https://scontent-nrt1-1.xx.fbcdn.net/v/t15.5256-10/650411248_950713637403998_5596803074667786654_n.jpg?stp=dst-jpg_s160x160_tt6&_nc_cat=109&ccb=1-7&_nc_sid=b696e2&_nc_ohc=zJgAKrJdDkgQ7kNvwGABPHR&_nc_oc=Adqfpp4TPtyEeLYcIvLcukJIwSHbshrBpkGFTmrKg5m3NOKASb_yHTMZLWTypAS0I7Y&_nc_zt=23&_nc_ht=scontent-nrt1-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQFugi2oc3eY5hVjV8sRojdAkntERnm5v5ptoc49qWiq2BWDt8v6HudkYpQ2XeunWnl-FVRTPWPl&oh=00_AfwfPW0ob2mvFqJYO28XKx19wvRoEKN7txBHt2AmQXympQ&oe=69C7BF86"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fe2ea6dbabd0a490f_1773379659911",
+                    "id": "120238335996040540"
+                  },
+                  {
+                    "name": "placement_asset_f68b5930732028205_1773379621327",
+                    "id": "120238335996060540"
+                  }
+                ],
+                "video_id": "942499728731451",
+                "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/650021426_1602361987641306_4435666787554531665_n.jpg?stp=dst-jpg_p168x128_tt6&_nc_cat=111&ccb=1-7&_nc_sid=b696e2&_nc_ohc=4anLyagxwW4Q7kNvwGQCzU3&_nc_oc=AdpxOHJjZRIwYGjvrH5a2_EBjs0Y_ZCN2s05ZtXqRC_3xtrgHtdsn2GaY3Jcxn-z8vo&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQHZhoR2FLvMn3Pjgs5PKYa-SyEsxfZ3-4Gsd1zpdDNwGMKxCFaor8T2O0IvB0Ha6OyIiQA_Yv9h&oh=00_AfzturPT9aniNuB8ZG-sHm9tbUBLjltFDAwOrg9Al2gT3Q&oe=69C7EF6F"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fd337859bcfda4f69_1773379659905",
+                    "id": "120238335996240540"
+                  }
+                ],
+                "video_id": "791202834040605",
+                "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/652067613_933350686342825_7003877030682043780_n.jpg?stp=dst-jpg_s160x160_tt6&_nc_cat=107&ccb=1-7&_nc_sid=b696e2&_nc_ohc=_6pZ_1LmqLYQ7kNvwFT18Zm&_nc_oc=AdqaZ26KlGn4aBXMv5-cIW6PozF0nZd1-d7Er_c69Z4g7JoSvzDAIYL81BS0Z4eGxJU&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQE1y8zg2rzj3Jxn4KtdWIhMFbmF7glOI8D-B8j4QbZUFbHeqKRVwIqbNXVPbuEgcPd9sdjxYZDx&oh=00_AfwFw2hrslSi58Bmc-Akl0tropDTdl5aDs75WAuySiTdlA&oe=69C7BBBA"
+              }
+            ],
+            "bodies": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f3cf77fe862cb38c3_1773379659909",
+                    "id": "120238335996110540"
+                  },
+                  {
+                    "name": "placement_asset_f3fc36a045d519904_1773379659905",
+                    "id": "120238335996120540"
+                  },
+                  {
+                    "name": "placement_asset_fbc25b7d0b64695ea_1773379659912",
+                    "id": "120238335996140540"
+                  }
+                ],
+                "text": "เธอเป็นคนที่คอยดูแลทุกคนอย่างดี แต่สุขภาพของเธอล่ะ เช็กครั้งสุดท้ายเมื่อไร?\nปรึกษาแพทย์ได้ที่ Doctor Anywhere"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f3cf77fe862cb38c3_1773379659909",
+                    "id": "120238335996110540"
+                  },
+                  {
+                    "name": "placement_asset_f3fc36a045d519904_1773379659905",
+                    "id": "120238335996120540"
+                  },
+                  {
+                    "name": "placement_asset_fbc25b7d0b64695ea_1773379659912",
+                    "id": "120238335996140540"
+                  }
+                ],
+                "text": "ผู้หญิงทุกคนสมควรได้รับความมั่นใจในสุขภาพ มากกว่าการแค่รู้สึกว่าโอเค\nDoctor Anywhere พร้อมดูแลสุขภาพผู้หญิงทุกท่านให้สุขภาพดีอย่างแท้จริง"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f3cf77fe862cb38c3_1773379659909",
+                    "id": "120238335996110540"
+                  },
+                  {
+                    "name": "placement_asset_f3fc36a045d519904_1773379659905",
+                    "id": "120238335996120540"
+                  },
+                  {
+                    "name": "placement_asset_fbc25b7d0b64695ea_1773379659912",
+                    "id": "120238335996140540"
+                  }
+                ],
+                "text": "เพราะสุขภาพดีแค่รู้สึกอาจไม่พอ ตรวจสุขภาพผู้หญิงและพูดคุยกับแพทย์ได้ง่ายๆ\nปรึกษาแพทย์ได้ที่ Doctor Anywhere"
+              }
+            ],
+            "call_to_action_types": [
+              "LEARN_MORE"
+            ],
+            "descriptions": [
+              {
+                "text": "Schedule a comprehensive health screening and optional add on imaging tests for a thorough checkup of your health, at Singapore's one-stop health screening and imaging centre in Orchard."
+              }
+            ],
+            "link_urls": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_febb80486fd25db7e_1773379659910",
+                    "id": "120238335996340540"
+                  },
+                  {
+                    "name": "placement_asset_f1886369f07e9089f_1773379659907",
+                    "id": "120238335996350540"
+                  },
+                  {
+                    "name": "placement_asset_f4ac0f0bf1cf391c5_1773379659912",
+                    "id": "120238335996370540"
+                  }
+                ],
+                "website_url": "https://www.doctoranywhere.co.th/?lang=th",
+                "display_url": ""
+              }
+            ],
+            "titles": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fb095db607c370423_1773379659910",
+                    "id": "120238335996080540"
+                  },
+                  {
+                    "name": "placement_asset_f7e3e982c7efa0fd1_1773379659912",
+                    "id": "120238335996160540"
+                  },
+                  {
+                    "name": "placement_asset_f556cb5c7605a7931_1773379659905",
+                    "id": "120238335996390540"
+                  }
+                ],
+                "text": "โปรแกรมตรวจสุขภาพเพื่อผู้หญิง"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fb095db607c370423_1773379659910",
+                    "id": "120238335996080540"
+                  },
+                  {
+                    "name": "placement_asset_f7e3e982c7efa0fd1_1773379659912",
+                    "id": "120238335996160540"
+                  },
+                  {
+                    "name": "placement_asset_f556cb5c7605a7931_1773379659905",
+                    "id": "120238335996390540"
+                  }
+                ],
+                "text": "สุขภาพดีอย่างมั่นใจ"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fb095db607c370423_1773379659910",
+                    "id": "120238335996080540"
+                  },
+                  {
+                    "name": "placement_asset_f7e3e982c7efa0fd1_1773379659912",
+                    "id": "120238335996160540"
+                  },
+                  {
+                    "name": "placement_asset_f556cb5c7605a7931_1773379659905",
+                    "id": "120238335996390540"
+                  }
+                ],
+                "text": "Pretty healthy?"
+              }
+            ],
+            "ad_formats": [
+              "SINGLE_VIDEO"
+            ],
+            "asset_customization_rules": [
+              {
+                "customization_spec": {
+                  "age_max": 65,
+                  "age_min": 13,
+                  "publisher_platforms": [
+                    "facebook",
+                    "instagram",
+                    "audience_network",
+                    "messenger"
+                  ],
+                  "facebook_positions": [
+                    "facebook_reels",
+                    "facebook_reels_overlay",
+                    "story"
+                  ],
+                  "instagram_positions": [
+                    "story",
+                    "reels"
+                  ],
+                  "messenger_positions": [
+                    "story"
+                  ],
+                  "audience_network_positions": [
+                    "classic",
+                    "rewarded_video"
+                  ]
+                },
+                "video_label": {
+                  "name": "placement_asset_f4c9df79fce0766cd_1773379659908",
+                  "id": "120238335996030540"
+                },
+                "body_label": {
+                  "name": "placement_asset_f3cf77fe862cb38c3_1773379659909",
+                  "id": "120238335996110540"
+                },
+                "link_url_label": {
+                  "name": "placement_asset_febb80486fd25db7e_1773379659910",
+                  "id": "120238335996340540"
+                },
+                "title_label": {
+                  "name": "placement_asset_fb095db607c370423_1773379659910",
+                  "id": "120238335996080540"
+                },
+                "priority": 1
+              },
+              {
+                "customization_spec": {
+                  "age_max": 65,
+                  "age_min": 13,
+                  "publisher_platforms": [
+                    "facebook"
+                  ],
+                  "facebook_positions": [
+                    "search"
+                  ]
+                },
+                "video_label": {
+                  "name": "placement_asset_fe2ea6dbabd0a490f_1773379659911",
+                  "id": "120238335996040540"
+                },
+                "body_label": {
+                  "name": "placement_asset_fbc25b7d0b64695ea_1773379659912",
+                  "id": "120238335996140540"
+                },
+                "link_url_label": {
+                  "name": "placement_asset_f4ac0f0bf1cf391c5_1773379659912",
+                  "id": "120238335996370540"
+                },
+                "title_label": {
+                  "name": "placement_asset_f7e3e982c7efa0fd1_1773379659912",
+                  "id": "120238335996160540"
+                },
+                "priority": 2
+              },
+              {
+                "customization_spec": {
+                  "age_max": 65,
+                  "age_min": 13
+                },
+                "video_label": {
+                  "name": "placement_asset_fd337859bcfda4f69_1773379659905",
+                  "id": "120238335996240540"
+                },
+                "body_label": {
+                  "name": "placement_asset_f3fc36a045d519904_1773379659905",
+                  "id": "120238335996120540"
+                },
+                "link_url_label": {
+                  "name": "placement_asset_f1886369f07e9089f_1773379659907",
+                  "id": "120238335996350540"
+                },
+                "title_label": {
+                  "name": "placement_asset_f556cb5c7605a7931_1773379659905",
+                  "id": "120238335996390540"
+                },
+                "priority": 3
+              }
+            ],
+            "optimization_type": "PLACEMENT",
+            "additional_data": {
+              "multi_share_end_card": false,
+              "is_click_to_message": false
+            },
+            "reasons_to_shop": false,
+            "shops_bundle": false
+          },
+          "thumbnail_url": "https://scontent-nrt1-1.xx.fbcdn.net/v/t15.5256-10/650411248_950713637403998_5596803074667786654_n.jpg?_nc_cat=109&ccb=1-7&_nc_ohc=zJgAKrJdDkgQ7kNvwGABPHR&_nc_oc=Adqfpp4TPtyEeLYcIvLcukJIwSHbshrBpkGFTmrKg5m3NOKASb_yHTMZLWTypAS0I7Y&_nc_zt=23&_nc_ht=scontent-nrt1-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQElyEXGctrVAAYoiTycdV1boZhQjPzYt3DKYvxPAoXjiEyngPOsjbEzhGQdN70Y7hd3BaepEo5T&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=b696e2&_nc_sid=58080a&oh=00_AfwZ1eI21I1vXTdg1xHTGrMo4SQRYUlLpGFToApwdia5IQ&oe=69C7BF86"
+        }
+      },
+      {
+        "id": "120238336021570540",
+        "name": "20260313_VDO_Manifesto",
+        "created_time": "2026-03-13T12:29:10+0700",
+        "updated_time": "2026-03-13T12:39:19+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "25911092465222494",
+          "name": "{{product.name}} 2026-03-12-b3066f6765529626c097ac2fa7a6db29",
+          "object_story_spec": {
+            "page_id": "826292100577332",
+            "instagram_user_id": "17841433852302603"
+          },
+          "asset_feed_spec": {
+            "videos": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f4c9df79fce0766cd_1773379659908",
+                    "id": "120238335996030540"
+                  },
+                  {
+                    "name": "placement_asset_fc9f76ca0e5746fb9_1773379621270",
+                    "id": "120238335996050540"
+                  }
+                ],
+                "video_id": "26089937527353227",
+                "thumbnail_url": "https://scontent-nrt1-1.xx.fbcdn.net/v/t15.5256-10/650411248_950713637403998_5596803074667786654_n.jpg?stp=dst-jpg_s160x160_tt6&_nc_cat=109&ccb=1-7&_nc_sid=b696e2&_nc_ohc=zJgAKrJdDkgQ7kNvwGABPHR&_nc_oc=Adqfpp4TPtyEeLYcIvLcukJIwSHbshrBpkGFTmrKg5m3NOKASb_yHTMZLWTypAS0I7Y&_nc_zt=23&_nc_ht=scontent-nrt1-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQEjvbtM0XPqpN6ue_NKCG0egKg5Fg9rL1kLaF2HwGOMl4BJ7JptpBBzNPn0OgqN1wkSZroQxqUj&oh=00_AfzlhDsqP2yy_wwC5TQNAX-hAnm17EnDHOs16v2k7wguaQ&oe=69C7BF86"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fd337859bcfda4f69_1773379659905",
+                    "id": "120238335996240540"
+                  }
+                ],
+                "video_id": "2141492430010387",
+                "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/652067613_933350686342825_7003877030682043780_n.jpg?stp=dst-jpg_s160x160_tt6&_nc_cat=107&ccb=1-7&_nc_sid=b696e2&_nc_ohc=_6pZ_1LmqLYQ7kNvwFT18Zm&_nc_oc=AdqaZ26KlGn4aBXMv5-cIW6PozF0nZd1-d7Er_c69Z4g7JoSvzDAIYL81BS0Z4eGxJU&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQFYUX29IalDGI0AAg5MT3mJx_PnMK05GzPBepZ07r7xPEzc0uD-KU7gYubgGygZTYB9uQxbbUJe&oh=00_Afx2CvGE2aiBu_of1QI2YXqjbGCukNFw53k5uKZ3rFxhOw&oe=69C7BBBA"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fe2ea6dbabd0a490f_1773379659911",
+                    "id": "120238335996040540"
+                  },
+                  {
+                    "name": "placement_asset_f68b5930732028205_1773379621327",
+                    "id": "120238335996060540"
+                  }
+                ],
+                "video_id": "3390068421152154",
+                "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/650021426_1602361987641306_4435666787554531665_n.jpg?stp=dst-jpg_p168x128_tt6&_nc_cat=111&ccb=1-7&_nc_sid=b696e2&_nc_ohc=4anLyagxwW4Q7kNvwGQCzU3&_nc_oc=AdpxOHJjZRIwYGjvrH5a2_EBjs0Y_ZCN2s05ZtXqRC_3xtrgHtdsn2GaY3Jcxn-z8vo&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQFD3BytuZCmFo3M3gmGitO9pr3EaHFG0eOcamw3Odcp_Ei6P24OZ-sW5d2gnYKrSE2kr1pGSop3&oh=00_AfynkZkRpnCJts_a6wLD7UMQR8kWesP_Mq8DdmRyD37_dg&oe=69C7EF6F"
+              }
+            ],
+            "bodies": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f3cf77fe862cb38c3_1773379659909",
+                    "id": "120238335996110540"
+                  },
+                  {
+                    "name": "placement_asset_f3fc36a045d519904_1773379659905",
+                    "id": "120238335996120540"
+                  },
+                  {
+                    "name": "placement_asset_fbc25b7d0b64695ea_1773379659912",
+                    "id": "120238335996140540"
+                  }
+                ],
+                "text": "เธอเป็นคนที่คอยดูแลทุกคนอย่างดี แต่สุขภาพของเธอล่ะ เช็กครั้งสุดท้ายเมื่อไร?\nปรึกษาแพทย์ได้ที่ Doctor Anywhere"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f3cf77fe862cb38c3_1773379659909",
+                    "id": "120238335996110540"
+                  },
+                  {
+                    "name": "placement_asset_f3fc36a045d519904_1773379659905",
+                    "id": "120238335996120540"
+                  },
+                  {
+                    "name": "placement_asset_fbc25b7d0b64695ea_1773379659912",
+                    "id": "120238335996140540"
+                  }
+                ],
+                "text": "ผู้หญิงทุกคนสมควรได้รับความมั่นใจในสุขภาพ มากกว่าการแค่รู้สึกว่าโอเค\nDoctor Anywhere พร้อมดูแลสุขภาพผู้หญิงทุกท่านให้สุขภาพดีอย่างแท้จริง"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f3cf77fe862cb38c3_1773379659909",
+                    "id": "120238335996110540"
+                  },
+                  {
+                    "name": "placement_asset_f3fc36a045d519904_1773379659905",
+                    "id": "120238335996120540"
+                  },
+                  {
+                    "name": "placement_asset_fbc25b7d0b64695ea_1773379659912",
+                    "id": "120238335996140540"
+                  }
+                ],
+                "text": "เพราะสุขภาพดีแค่รู้สึกอาจไม่พอ ตรวจสุขภาพผู้หญิงและพูดคุยกับแพทย์ได้ง่ายๆ\nปรึกษาแพทย์ได้ที่ Doctor Anywhere"
+              }
+            ],
+            "call_to_action_types": [
+              "LEARN_MORE"
+            ],
+            "descriptions": [
+              {
+                "text": "Schedule a comprehensive health screening and optional add on imaging tests for a thorough checkup of your health, at Singapore's one-stop health screening and imaging centre in Orchard."
+              }
+            ],
+            "link_urls": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_febb80486fd25db7e_1773379659910",
+                    "id": "120238335996340540"
+                  },
+                  {
+                    "name": "placement_asset_f1886369f07e9089f_1773379659907",
+                    "id": "120238335996350540"
+                  },
+                  {
+                    "name": "placement_asset_f4ac0f0bf1cf391c5_1773379659912",
+                    "id": "120238335996370540"
+                  }
+                ],
+                "website_url": "https://www.doctoranywhere.co.th/?lang=th",
+                "display_url": ""
+              }
+            ],
+            "titles": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fb095db607c370423_1773379659910",
+                    "id": "120238335996080540"
+                  },
+                  {
+                    "name": "placement_asset_f7e3e982c7efa0fd1_1773379659912",
+                    "id": "120238335996160540"
+                  },
+                  {
+                    "name": "placement_asset_f556cb5c7605a7931_1773379659905",
+                    "id": "120238335996390540"
+                  }
+                ],
+                "text": "โปรแกรมตรวจสุขภาพเพื่อผู้หญิง"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fb095db607c370423_1773379659910",
+                    "id": "120238335996080540"
+                  },
+                  {
+                    "name": "placement_asset_f7e3e982c7efa0fd1_1773379659912",
+                    "id": "120238335996160540"
+                  },
+                  {
+                    "name": "placement_asset_f556cb5c7605a7931_1773379659905",
+                    "id": "120238335996390540"
+                  }
+                ],
+                "text": "สุขภาพดีอย่างมั่นใจ"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fb095db607c370423_1773379659910",
+                    "id": "120238335996080540"
+                  },
+                  {
+                    "name": "placement_asset_f7e3e982c7efa0fd1_1773379659912",
+                    "id": "120238335996160540"
+                  },
+                  {
+                    "name": "placement_asset_f556cb5c7605a7931_1773379659905",
+                    "id": "120238335996390540"
+                  }
+                ],
+                "text": "Pretty healthy?"
+              }
+            ],
+            "ad_formats": [
+              "SINGLE_VIDEO"
+            ],
+            "asset_customization_rules": [
+              {
+                "customization_spec": {
+                  "age_max": 65,
+                  "age_min": 13,
+                  "publisher_platforms": [
+                    "facebook",
+                    "instagram",
+                    "audience_network",
+                    "messenger"
+                  ],
+                  "facebook_positions": [
+                    "facebook_reels",
+                    "facebook_reels_overlay",
+                    "story"
+                  ],
+                  "instagram_positions": [
+                    "story",
+                    "reels"
+                  ],
+                  "messenger_positions": [
+                    "story"
+                  ],
+                  "audience_network_positions": [
+                    "classic",
+                    "rewarded_video"
+                  ]
+                },
+                "video_label": {
+                  "name": "placement_asset_f4c9df79fce0766cd_1773379659908",
+                  "id": "120238335996030540"
+                },
+                "body_label": {
+                  "name": "placement_asset_f3cf77fe862cb38c3_1773379659909",
+                  "id": "120238335996110540"
+                },
+                "link_url_label": {
+                  "name": "placement_asset_febb80486fd25db7e_1773379659910",
+                  "id": "120238335996340540"
+                },
+                "title_label": {
+                  "name": "placement_asset_fb095db607c370423_1773379659910",
+                  "id": "120238335996080540"
+                },
+                "priority": 1
+              },
+              {
+                "customization_spec": {
+                  "age_max": 65,
+                  "age_min": 13,
+                  "publisher_platforms": [
+                    "facebook"
+                  ],
+                  "facebook_positions": [
+                    "search"
+                  ]
+                },
+                "video_label": {
+                  "name": "placement_asset_fe2ea6dbabd0a490f_1773379659911",
+                  "id": "120238335996040540"
+                },
+                "body_label": {
+                  "name": "placement_asset_fbc25b7d0b64695ea_1773379659912",
+                  "id": "120238335996140540"
+                },
+                "link_url_label": {
+                  "name": "placement_asset_f4ac0f0bf1cf391c5_1773379659912",
+                  "id": "120238335996370540"
+                },
+                "title_label": {
+                  "name": "placement_asset_f7e3e982c7efa0fd1_1773379659912",
+                  "id": "120238335996160540"
+                },
+                "priority": 2
+              },
+              {
+                "customization_spec": {
+                  "age_max": 65,
+                  "age_min": 13
+                },
+                "video_label": {
+                  "name": "placement_asset_fd337859bcfda4f69_1773379659905",
+                  "id": "120238335996240540"
+                },
+                "body_label": {
+                  "name": "placement_asset_f3fc36a045d519904_1773379659905",
+                  "id": "120238335996120540"
+                },
+                "link_url_label": {
+                  "name": "placement_asset_f1886369f07e9089f_1773379659907",
+                  "id": "120238335996350540"
+                },
+                "title_label": {
+                  "name": "placement_asset_f556cb5c7605a7931_1773379659905",
+                  "id": "120238335996390540"
+                },
+                "priority": 3
+              }
+            ],
+            "optimization_type": "PLACEMENT",
+            "additional_data": {
+              "multi_share_end_card": false,
+              "is_click_to_message": false
+            },
+            "reasons_to_shop": false,
+            "shops_bundle": false
+          },
+          "thumbnail_url": "https://scontent-nrt1-1.xx.fbcdn.net/v/t15.5256-10/650411248_950713637403998_5596803074667786654_n.jpg?_nc_cat=109&ccb=1-7&_nc_ohc=zJgAKrJdDkgQ7kNvwGABPHR&_nc_oc=Adqfpp4TPtyEeLYcIvLcukJIwSHbshrBpkGFTmrKg5m3NOKASb_yHTMZLWTypAS0I7Y&_nc_zt=23&_nc_ht=scontent-nrt1-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQF9-B6-3AbLmRc_41ehiHt0ycv0Bq8G6UWuLfiD4jJHIz_J9ltXRphCZZkRptpkRguiMwqJjpfC&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=b696e2&_nc_sid=58080a&oh=00_AfzZlU6pNP8VHrb35PyJOcAO1dSkXvaPxr0Vf4jggf3oAQ&oe=69C7BF86"
+        }
+      },
+      {
+        "id": "120238336021710540",
+        "name": "20260313_VDO_Manifesto",
+        "created_time": "2026-03-13T12:29:10+0700",
+        "updated_time": "2026-03-13T12:39:18+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "1601025601167708",
+          "name": "{{product.name}} 2026-03-12-3676caae5712e58307f7883f99186014",
+          "object_story_spec": {
+            "page_id": "826292100577332",
+            "instagram_user_id": "17841433852302603"
+          },
+          "asset_feed_spec": {
+            "videos": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fd337859bcfda4f69_1773379659905",
+                    "id": "120238335996240540"
+                  }
+                ],
+                "video_id": "3336508033183839",
+                "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/652067613_933350686342825_7003877030682043780_n.jpg?stp=dst-jpg_s160x160_tt6&_nc_cat=107&ccb=1-7&_nc_sid=b696e2&_nc_ohc=_6pZ_1LmqLYQ7kNvwFT18Zm&_nc_oc=AdqaZ26KlGn4aBXMv5-cIW6PozF0nZd1-d7Er_c69Z4g7JoSvzDAIYL81BS0Z4eGxJU&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQEHVrhavy4Zra6DEBOIxjehVs6M_QOr-8rN9AXi94WJj79OmTvSWEqc-GyQ1aPuX_sOeqbPxFuX&oh=00_AfwhdN5UbZ3llqgAmxyhg_btLbJbSUItD1iiMvXSE2-vVA&oe=69C7BBBA"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f4c9df79fce0766cd_1773379659908",
+                    "id": "120238335996030540"
+                  },
+                  {
+                    "name": "placement_asset_fc9f76ca0e5746fb9_1773379621270",
+                    "id": "120238335996050540"
+                  }
+                ],
+                "video_id": "2441418156278798",
+                "thumbnail_url": "https://scontent-nrt1-1.xx.fbcdn.net/v/t15.5256-10/650411248_950713637403998_5596803074667786654_n.jpg?stp=dst-jpg_s160x160_tt6&_nc_cat=109&ccb=1-7&_nc_sid=b696e2&_nc_ohc=zJgAKrJdDkgQ7kNvwGABPHR&_nc_oc=Adqfpp4TPtyEeLYcIvLcukJIwSHbshrBpkGFTmrKg5m3NOKASb_yHTMZLWTypAS0I7Y&_nc_zt=23&_nc_ht=scontent-nrt1-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQF2_23we4U4QatHHiTLaAWVHQ59mRxEmGO2H3a02lxDqeTAVPPgHvMdzoXKK2ZhuXfOaHUaS6oE&oh=00_Afyiqqil6rVX67bA1ttfzm9IGv5PT745I50wJdPWXi3Grw&oe=69C7BF86"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fe2ea6dbabd0a490f_1773379659911",
+                    "id": "120238335996040540"
+                  },
+                  {
+                    "name": "placement_asset_f68b5930732028205_1773379621327",
+                    "id": "120238335996060540"
+                  }
+                ],
+                "video_id": "3562294260590199",
+                "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/650021426_1602361987641306_4435666787554531665_n.jpg?stp=dst-jpg_p168x128_tt6&_nc_cat=111&ccb=1-7&_nc_sid=b696e2&_nc_ohc=4anLyagxwW4Q7kNvwGQCzU3&_nc_oc=AdpxOHJjZRIwYGjvrH5a2_EBjs0Y_ZCN2s05ZtXqRC_3xtrgHtdsn2GaY3Jcxn-z8vo&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQHXQblPTsgGAGiCaRila9AItvE_-tKnKDswcG409zp_U7-nedStrabiJI1KV4KWc4OuOYadEQY7&oh=00_Afxh4i6El8JyXDGUSOnZdpw4yAmDe6Uf2hlHSYVhaa7u7Q&oe=69C7EF6F"
+              }
+            ],
+            "bodies": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f3cf77fe862cb38c3_1773379659909",
+                    "id": "120238335996110540"
+                  },
+                  {
+                    "name": "placement_asset_f3fc36a045d519904_1773379659905",
+                    "id": "120238335996120540"
+                  },
+                  {
+                    "name": "placement_asset_fbc25b7d0b64695ea_1773379659912",
+                    "id": "120238335996140540"
+                  }
+                ],
+                "text": "เธอเป็นคนที่คอยดูแลทุกคนอย่างดี แต่สุขภาพของเธอล่ะ เช็กครั้งสุดท้ายเมื่อไร?\nปรึกษาแพทย์ได้ที่ Doctor Anywhere"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f3cf77fe862cb38c3_1773379659909",
+                    "id": "120238335996110540"
+                  },
+                  {
+                    "name": "placement_asset_f3fc36a045d519904_1773379659905",
+                    "id": "120238335996120540"
+                  },
+                  {
+                    "name": "placement_asset_fbc25b7d0b64695ea_1773379659912",
+                    "id": "120238335996140540"
+                  }
+                ],
+                "text": "ผู้หญิงทุกคนสมควรได้รับความมั่นใจในสุขภาพ มากกว่าการแค่รู้สึกว่าโอเค\nDoctor Anywhere พร้อมดูแลสุขภาพผู้หญิงทุกท่านให้สุขภาพดีอย่างแท้จริง"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_f3cf77fe862cb38c3_1773379659909",
+                    "id": "120238335996110540"
+                  },
+                  {
+                    "name": "placement_asset_f3fc36a045d519904_1773379659905",
+                    "id": "120238335996120540"
+                  },
+                  {
+                    "name": "placement_asset_fbc25b7d0b64695ea_1773379659912",
+                    "id": "120238335996140540"
+                  }
+                ],
+                "text": "เพราะสุขภาพดีแค่รู้สึกอาจไม่พอ ตรวจสุขภาพผู้หญิงและพูดคุยกับแพทย์ได้ง่ายๆ\nปรึกษาแพทย์ได้ที่ Doctor Anywhere"
+              }
+            ],
+            "call_to_action_types": [
+              "LEARN_MORE"
+            ],
+            "descriptions": [
+              {
+                "text": "Schedule a comprehensive health screening and optional add on imaging tests for a thorough checkup of your health, at Singapore's one-stop health screening and imaging centre in Orchard."
+              }
+            ],
+            "link_urls": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_febb80486fd25db7e_1773379659910",
+                    "id": "120238335996340540"
+                  },
+                  {
+                    "name": "placement_asset_f1886369f07e9089f_1773379659907",
+                    "id": "120238335996350540"
+                  },
+                  {
+                    "name": "placement_asset_f4ac0f0bf1cf391c5_1773379659912",
+                    "id": "120238335996370540"
+                  }
+                ],
+                "website_url": "https://www.doctoranywhere.co.th/?lang=th",
+                "display_url": ""
+              }
+            ],
+            "titles": [
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fb095db607c370423_1773379659910",
+                    "id": "120238335996080540"
+                  },
+                  {
+                    "name": "placement_asset_f7e3e982c7efa0fd1_1773379659912",
+                    "id": "120238335996160540"
+                  },
+                  {
+                    "name": "placement_asset_f556cb5c7605a7931_1773379659905",
+                    "id": "120238335996390540"
+                  }
+                ],
+                "text": "โปรแกรมตรวจสุขภาพเพื่อผู้หญิง"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fb095db607c370423_1773379659910",
+                    "id": "120238335996080540"
+                  },
+                  {
+                    "name": "placement_asset_f7e3e982c7efa0fd1_1773379659912",
+                    "id": "120238335996160540"
+                  },
+                  {
+                    "name": "placement_asset_f556cb5c7605a7931_1773379659905",
+                    "id": "120238335996390540"
+                  }
+                ],
+                "text": "สุขภาพดีอย่างมั่นใจ"
+              },
+              {
+                "adlabels": [
+                  {
+                    "name": "placement_asset_fb095db607c370423_1773379659910",
+                    "id": "120238335996080540"
+                  },
+                  {
+                    "name": "placement_asset_f7e3e982c7efa0fd1_1773379659912",
+                    "id": "120238335996160540"
+                  },
+                  {
+                    "name": "placement_asset_f556cb5c7605a7931_1773379659905",
+                    "id": "120238335996390540"
+                  }
+                ],
+                "text": "Pretty healthy?"
+              }
+            ],
+            "ad_formats": [
+              "SINGLE_VIDEO"
+            ],
+            "asset_customization_rules": [
+              {
+                "customization_spec": {
+                  "age_max": 65,
+                  "age_min": 13,
+                  "publisher_platforms": [
+                    "facebook",
+                    "instagram",
+                    "audience_network",
+                    "messenger"
+                  ],
+                  "facebook_positions": [
+                    "facebook_reels",
+                    "facebook_reels_overlay",
+                    "story"
+                  ],
+                  "instagram_positions": [
+                    "story",
+                    "reels"
+                  ],
+                  "messenger_positions": [
+                    "story"
+                  ],
+                  "audience_network_positions": [
+                    "classic",
+                    "rewarded_video"
+                  ]
+                },
+                "video_label": {
+                  "name": "placement_asset_f4c9df79fce0766cd_1773379659908",
+                  "id": "120238335996030540"
+                },
+                "body_label": {
+                  "name": "placement_asset_f3cf77fe862cb38c3_1773379659909",
+                  "id": "120238335996110540"
+                },
+                "link_url_label": {
+                  "name": "placement_asset_febb80486fd25db7e_1773379659910",
+                  "id": "120238335996340540"
+                },
+                "title_label": {
+                  "name": "placement_asset_fb095db607c370423_1773379659910",
+                  "id": "120238335996080540"
+                },
+                "priority": 1
+              },
+              {
+                "customization_spec": {
+                  "age_max": 65,
+                  "age_min": 13,
+                  "publisher_platforms": [
+                    "facebook"
+                  ],
+                  "facebook_positions": [
+                    "search"
+                  ]
+                },
+                "video_label": {
+                  "name": "placement_asset_fe2ea6dbabd0a490f_1773379659911",
+                  "id": "120238335996040540"
+                },
+                "body_label": {
+                  "name": "placement_asset_fbc25b7d0b64695ea_1773379659912",
+                  "id": "120238335996140540"
+                },
+                "link_url_label": {
+                  "name": "placement_asset_f4ac0f0bf1cf391c5_1773379659912",
+                  "id": "120238335996370540"
+                },
+                "title_label": {
+                  "name": "placement_asset_f7e3e982c7efa0fd1_1773379659912",
+                  "id": "120238335996160540"
+                },
+                "priority": 2
+              },
+              {
+                "customization_spec": {
+                  "age_max": 65,
+                  "age_min": 13
+                },
+                "video_label": {
+                  "name": "placement_asset_fd337859bcfda4f69_1773379659905",
+                  "id": "120238335996240540"
+                },
+                "body_label": {
+                  "name": "placement_asset_f3fc36a045d519904_1773379659905",
+                  "id": "120238335996120540"
+                },
+                "link_url_label": {
+                  "name": "placement_asset_f1886369f07e9089f_1773379659907",
+                  "id": "120238335996350540"
+                },
+                "title_label": {
+                  "name": "placement_asset_f556cb5c7605a7931_1773379659905",
+                  "id": "120238335996390540"
+                },
+                "priority": 3
+              }
+            ],
+            "optimization_type": "PLACEMENT",
+            "additional_data": {
+              "multi_share_end_card": false,
+              "is_click_to_message": false
+            },
+            "reasons_to_shop": false,
+            "shops_bundle": false
+          },
+          "thumbnail_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t15.5256-10/652067613_933350686342825_7003877030682043780_n.jpg?_nc_cat=107&ccb=1-7&_nc_ohc=_6pZ_1LmqLYQ7kNvwFT18Zm&_nc_oc=AdqaZ26KlGn4aBXMv5-cIW6PozF0nZd1-d7Er_c69Z4g7JoSvzDAIYL81BS0Z4eGxJU&_nc_zt=23&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQHJHtFwo5CKtkadATuZpM-FcM2dsKyXcKWO-_yx6b_n25TVGqp3HemEpJ4m2rH5Rz9nr5Lcvgo3&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=b696e2&_nc_sid=58080a&oh=00_Afx8B_gDmLBlSpczCpplKvzkv540aHIq_Fenl5O5GZKd5g&oe=69C7BBBA"
+        }
+      },
+      {
+        "id": "120216461733720540",
+        "name": "Post: \"🦠 ไข้หวัดใหญ่สายพันธุ์ A ระบาดหนัก 🚨\"",
+        "created_time": "2025-03-10T16:52:17+0700",
+        "updated_time": "2025-03-11T09:17:57+0700",
+        "effective_status": "ACTIVE",
+        "creative": {
+          "id": "648820197743307",
+          "name": "ฉีดวัคซีนไข้หวัดใหญ่ ชนิด 4 สายพันธุ์ 1 ท่าน | Doctor Anywhere Marketplace 2025-03-10-e25c39488ea10b778476f81dd19e3887",
+          "image_url": "https://scontent-nrt6-1.xx.fbcdn.net/v/t45.1600-4/563523681_24921556507499798_7504812248364769874_n.jpg?_nc_cat=105&ccb=1-7&_nc_sid=d5bd00&_nc_ohc=rn41KtEI8GYQ7kNvwG8USkp&_nc_oc=Adqt8d3Y3NjGlM4rVk1dWbyBg8g0RN_CmE7LP21eJUMvU-Wpj9Bmgq00L-F1K1cXSTw&_nc_zt=1&_nc_ht=scontent-nrt6-1.xx&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_tpa=Q5bMBQE0kdeiLbYVkaiypTbqYVpfnDdCv-9iqFl6xTKksoItIGlWrxayXrHGiz-3vbXLxkIgNE5XZn_v&oh=00_AfyUtABTZ0pHDm9WxEnYS52xh5WuKFSarW5N2xDDZaU6Eg&oe=69C7BAFA",
+          "thumbnail_url": "https://external-nrt1-2.xx.fbcdn.net/emg1/v/t13/2378572846890621610?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQIL6frziaNmbk6T71AqEckfuIJSSMV1nhmeaSY-FpA09tWgBr6_8zbWvF0JgDxL4B4B0doN3jksxXHdiKIBATsnIIhaPTeQ2O5ME2Q0ZQkjEGlt2Fn-bIvTKpsGZ30AFg3R3u-YPUmDHpAuvHOQRmOg&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AOgd6ZUEAAAA&_nc_gid=nmyitM5E4XkIUYjHOxJ9kA&_nc_oc=AdoAQOQr6FJM9nrlhwgGAPqd9TiY1ju1xGKrU4GmFtTWaPtcBuflfjh3YQLq-FK3CC8&ccb=13-1&oh=06_Q3-9Aere4hnPIcjCTg2Y_VzNI0vBdSF9yPYjpaMEkLyvBlo2&oe=69C3E751&_nc_sid=58080a"
+        }
+      }
+    ],
+    "paging": "--sanitized--"
+  }
+==== Debug Information from Graph API Explorer
+- https://developers.facebook.com/tools/explorer/1677978946463984/?method=GET&path=act_240393917186645%2Fads%3Ffields%3Did%2Cname%2Ccreated_time%2Cupdated_time%2Ceffective_status%2Ccreative%7Bid%2Cname%2Cobject_story_spec%2Casset_feed_spec%2Cimage_url%2Cthumbnail_url%2Cvideo_id%7D%26effective_status%3D['ACTIVE']%26limit%3D100&version=v23.0

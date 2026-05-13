@@ -1,0 +1,9 @@
+{
+  "name": "ad-compliance-report-viewer",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "vercel dev",
+    "deploy": "vercel --prod"
+  }
+}

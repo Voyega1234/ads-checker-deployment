@@ -1,0 +1,12 @@
+node_modules/
+.env
+output/
+*.log
+.DS_Store
+.vercel
+__pycache__/
+*.pyc
+.dockerignore.local
+**/ai-sheet-manager-service-account.json
+**/*service-account*.json
+**/*service_account*.json

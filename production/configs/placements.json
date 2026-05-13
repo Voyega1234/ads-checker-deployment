@@ -1,0 +1,16 @@
+{
+  "defaultFormats": [
+    "MOBILE_FEED_STANDARD",
+    "INSTAGRAM_STANDARD",
+    "INSTAGRAM_STORY",
+    "FACEBOOK_STORY_MOBILE",
+    "INSTAGRAM_REELS",
+    "FACEBOOK_REELS_MOBILE"
+  ],
+  "storyReelsOnly": [
+    "INSTAGRAM_STORY",
+    "INSTAGRAM_REELS",
+    "FACEBOOK_REELS_MOBILE",
+    "FACEBOOK_STORY_MOBILE"
+  ]
+}

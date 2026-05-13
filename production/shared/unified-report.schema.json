@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ad Compliance Unified Report",
+  "type": "object",
+  "required": ["meta", "threadMessages"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["accountId", "generatedAt"],
+      "properties": {
+        "clientName": { "type": "string" },
+        "accountId": { "type": "string" },
+        "accountName": { "type": "string" },
+        "generatedAt": { "type": "string" },
+        "adCount": { "type": "number" },
+        "creativeCount": { "type": "number" },
+        "policyCreativeCount": { "type": "number" },
+        "spellingCreativeCount": { "type": "number" },
+        "placementAdCount": { "type": "number" }
+      },
+      "additionalProperties": true
+    },
+    "mainMessage": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "threadMessages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["key", "blocks"],
+        "properties": {
+          "key": { "type": "string" },
+          "text": { "type": "string" },
+          "blocks": { "type": "array" },
+          "details": {
+            "type": "object",
+            "properties": {
+              "policy": { "type": "object" },
+              "spelling": { "type": "object" },
+              "placement": { "type": "object" }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

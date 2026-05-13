@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+  <title>Ad Compliance Report</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7f8;
+      --panel: #ffffff;
+      --text: #172026;
+      --muted: #63707a;
+      --line: #d7dee4;
+      --danger: #c62828;
+      --code: #eef2f5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Prompt", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+    header {
+      background: #101820;
+      color: #fff;
+      padding: 28px 24px;
+    }
+    .wrap { max-width: 1180px; margin: 0 auto; }
+    main { max-width: 1180px; margin: 0 auto; padding: 24px; }
+    h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: 0; }
+    h2 { margin: 0 0 14px; font-size: 18px; letter-spacing: 0; color: var(--text); }
+    .subhead { color: #c8d1d9; margin: 0; }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .metric {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .metric b { display: block; font-size: 13px; color: #c8d1d9; margin-bottom: 4px; }
+    .metric span { font-size: 18px; font-weight: 700; }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+    input[type="search"] {
+      flex: 1 1 280px;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 12px;
+      font: inherit;
+      background: #fff;
+    }
+    .filter {
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+    }
+    .group {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .group-head {
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .creative {
+      font-size: 18px;
+      font-weight: 750;
+      margin: 0 0 10px;
+    }
+    .ids {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    code {
+      background: var(--code);
+      border: 1px solid #d9e1e7;
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      color: #8a4f00;
+    }
+    .status {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .status-item b { display: block; font-size: 13px; margin-bottom: 2px; }
+    .fail { color: var(--danger); font-weight: 700; }
+    .na { color: var(--muted); }
+    .body {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(300px, .9fr);
+      gap: 18px;
+      padding: 16px;
+    }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #101820;
+      color: #f4f7fa;
+      border-radius: 8px;
+      padding: 14px;
+      max-height: 420px;
+      overflow: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+    }
+    .issues {
+      margin: 0 0 14px;
+      padding-left: 18px;
+      color: var(--muted);
+    }
+    .shots {
+      display: grid;
+      gap: 12px;
+    }
+    .shot { margin: 0; }
+    .shot img {
+      width: 100%;
+      max-height: 520px;
+      height: auto;
+      object-fit: contain;
+      background: #e8edf1;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      display: block;
+    }
+    .shot-title {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 6px 0 0;
+    }
+    .context {
+      padding: 0 16px 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .notice {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+    }
+    .empty { color: var(--muted); padding: 24px; text-align: center; display: none; }
+    @media (max-width: 860px) {
+      .summary, .status, .body { grid-template-columns: 1fr; }
+      header, main { padding-left: 16px; padding-right: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Ad Compliance Alert</h1>
+      <p id="subhead" class="subhead">Loading report...</p>
+      <section class="summary" aria-label="Summary">
+        <div class="metric"><b>Affected ads</b><span id="metric-ads">-</span></div>
+        <div class="metric"><b>Policy</b><span id="metric-policy">-</span></div>
+        <div class="metric"><b>Spelling</b><span id="metric-spelling">-</span></div>
+        <div class="metric"><b>Placement</b><span id="metric-placement">-</span></div>
+      </section>
+    </div>
+  </header>
+  <main>
+    <section class="toolbar" aria-label="Controls">
+      <input id="search" type="search" placeholder="Search creative name, ad id, finding, revised text">
+      <label class="filter"><input type="checkbox" data-filter="policy"> Policy</label>
+      <label class="filter"><input type="checkbox" data-filter="spelling"> Spelling</label>
+      <label class="filter"><input type="checkbox" data-filter="placement"> Placement</label>
+      <label class="filter"><input type="checkbox" data-filter="screenshot"> Screenshot</label>
+    </section>
+    <section id="groups"></section>
+    <div id="empty" class="empty">No issue groups match the current filters.</div>
+    <div id="notice" class="notice" hidden></div>
+  </main>
+  <script>
+    const els = {
+      subhead: document.querySelector("#subhead"),
+      ads: document.querySelector("#metric-ads"),
+      policy: document.querySelector("#metric-policy"),
+      spelling: document.querySelector("#metric-spelling"),
+      placement: document.querySelector("#metric-placement"),
+      groups: document.querySelector("#groups"),
+      empty: document.querySelector("#empty"),
+      notice: document.querySelector("#notice"),
+      search: document.querySelector("#search"),
+      filters: Array.from(document.querySelectorAll("[data-filter]"))
+    };
+
+    init().catch((error) => {
+      els.notice.hidden = false;
+      els.notice.textContent = error.message;
+    });
+
+    async function init() {
+      const params = new URLSearchParams(window.location.search);
+      const reportUrl = params.get("report");
+      if (!reportUrl) {
+        throw new Error("Missing report URL. Open this page with ?report=<public-report-json-url>");
+      }
+      const response = await fetch(reportUrl, { mode: "cors" });
+      if (!response.ok) throw new Error("Could not load report JSON: " + response.status);
+      const alert = await response.json();
+      const report = normalizeAlert(alert);
+      renderReport(report);
+      bindFilters();
+    }
+
+    function normalizeAlert(alert) {
+      return {
+        meta: alert.meta || {},
+        groups: (alert.threadMessages || []).map(normalizeThreadMessage)
+      };
+    }
+
+    function normalizeThreadMessage(message, index) {
+      const blocks = message.blocks || [];
+      const headerText = blocks[0]?.text?.text || "";
+      const [titleLine = "", adIdLine = ""] = headerText.split("\n");
+      const titleMatch = titleLine.match(/^\*(.+)\*\s+·\s+(\d+)\s+ads?/);
+      const creativeName = titleMatch?.[1] || titleLine.replace(/\*/g, "") || "Issue group " + (index + 1);
+      const usedInAds = Number(titleMatch?.[2] || 0);
+      const adIds = Array.from(adIdLine.matchAll(/`([^`]+)`/g)).map((match) => match[1]);
+      const statusText = blocks.find((block) => block.text?.text?.includes("*Policy:*"))?.text?.text || "";
+      const status = parseStatus(statusText);
+      const placementIssues = parsePlacementIssues(blocks);
+      const revisedText = parseRevisedText(blocks);
+      const screenshots = dedupeScreenshots(blocks
+        .filter((block) => block.type === "image" && block.image_url)
+        .map((block) => ({ url: block.image_url, title: block.title?.text || "Ad placement preview" })));
+      const context = blocks.find((block) => block.type === "context")?.elements?.[0]?.text || "";
+      return { key: message.key || String(index), creativeName, usedInAds, adIds, status, placementIssues, revisedText, screenshots, context };
+    }
+
+    function parseStatus(text) {
+      const clean = text.replace(/\*/g, "");
+      return {
+        policy: matchLabel(clean, "Policy"),
+        spelling: matchLabel(clean, "Spelling"),
+        placement: matchLabel(clean, "Placement"),
+        image: matchLabel(clean, "Image")
+      };
+    }
+
+    function matchLabel(text, label) {
+      const pattern = new RegExp(label + ":\\s*([^\\n·]+(?:\\([^)]*\\))?)");
+      return (text.match(pattern)?.[1] || "N/A").trim();
+    }
+
+    function parsePlacementIssues(blocks) {
+      const block = blocks.find((item) => item.text?.text?.startsWith("*Placement issues*"));
+      if (!block) return [];
+      return block.text.text.split("\n").slice(1)
+        .map((line) => line.replace(/^-\s*/, "").trim())
+        .filter(Boolean)
+        .map((line) => line.replace(/`/g, ""));
+    }
+
+    function parseRevisedText(blocks) {
+      const block = blocks.find((item) => item.text?.text?.startsWith("*Revised text*"));
+      if (!block) return "N/A";
+      const match = block.text.text.match(/```([\s\S]*)```/);
+      return (match?.[1] || "N/A").trim();
+    }
+
+    function dedupeScreenshots(screenshots) {
+      const seen = new Set();
+      return screenshots.filter((item) => {
+        const key = item.url + ":" + item.title;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    function renderReport(report) {
+      const meta = report.meta;
+      const date = formatDate(meta.generatedAt);
+      els.subhead.innerHTML = `${escapeHtml(meta.clientName || meta.accountName || "Unknown client")} · <code>${escapeHtml(meta.accountId || "")}</code> · ${escapeHtml(date)}`;
+      document.title = `${meta.clientName || "Ad Compliance"} Report`;
+      els.ads.textContent = `${meta.adCount || 0} ads · ${meta.creativeCount || 0} creatives`;
+      els.policy.textContent = `${meta.policyCreativeCount || 0} creatives`;
+      els.spelling.textContent = `${meta.spellingCreativeCount || 0} creatives`;
+      els.placement.textContent = `${meta.placementAdCount || 0} ads`;
+      els.groups.innerHTML = report.groups.map(renderGroupCard).join("");
+      applyFilters();
+    }
+
+    function renderGroupCard(group) {
+      const hasPolicy = isFail(group.status.policy);
+      const hasSpelling = isFail(group.status.spelling);
+      const hasPlacement = isFail(group.status.placement);
+      const hasScreenshot = group.screenshots.length > 0;
+      const search = [group.creativeName, group.adIds.join(" "), Object.values(group.status).join(" "), group.placementIssues.join(" "), group.revisedText, group.context].join(" ").toLowerCase();
+      return `<article class="group" data-policy="${hasPolicy}" data-spelling="${hasSpelling}" data-placement="${hasPlacement}" data-screenshot="${hasScreenshot}" data-search="${escapeAttr(search)}">
+        <div class="group-head">
+          <p class="creative">${escapeHtml(group.creativeName)} · ${group.usedInAds || group.adIds.length} ad${(group.usedInAds || group.adIds.length) === 1 ? "" : "s"}</p>
+          <div class="ids">${group.adIds.map((id) => `<code>${escapeHtml(id)}</code>`).join("")}</div>
+        </div>
+        <div class="status">
+          ${renderStatusItem("Policy", group.status.policy)}
+          ${renderStatusItem("Spelling", group.status.spelling)}
+          ${renderStatusItem("Placement", group.status.placement)}
+          ${renderStatusItem("Screenshot", hasScreenshot ? "⚠ Attached" : "N/A")}
+        </div>
+        <div class="body">
+          <section>
+            ${group.placementIssues.length ? `<h2>Placement issues</h2><ul class="issues">${group.placementIssues.map((issue) => `<li>${escapeHtml(issue)}</li>`).join("")}</ul>` : ""}
+            <h2>Revised text</h2>
+            <pre>${escapeHtml(group.revisedText || "N/A")}</pre>
+          </section>
+          <section class="shots">
+            ${group.screenshots.length ? group.screenshots.map(renderScreenshot).join("") : `<p class="na">No screenshot attached.</p>`}
+          </section>
+        </div>
+        ${group.context ? `<div class="context">${escapeHtml(group.context)}</div>` : ""}
+      </article>`;
+    }
+
+    function renderStatusItem(label, value) {
+      const className = isFail(value) || value.includes("⚠") ? "fail" : "na";
+      return `<div class="status-item"><b>${escapeHtml(label)}</b><span class="${className}">${escapeHtml(value)}</span></div>`;
+    }
+
+    function renderScreenshot(item) {
+      return `<figure class="shot">
+        <img src="${escapeAttr(item.url)}" alt="Ad placement preview">
+        <figcaption class="shot-title">${escapeHtml(item.title)}</figcaption>
+      </figure>`;
+    }
+
+    function bindFilters() {
+      els.search.addEventListener("input", applyFilters);
+      els.filters.forEach((item) => item.addEventListener("change", applyFilters));
+    }
+
+    function applyFilters() {
+      const cards = Array.from(document.querySelectorAll(".group"));
+      const q = els.search.value.trim().toLowerCase();
+      const active = els.filters.filter((item) => item.checked).map((item) => item.dataset.filter);
+      let visible = 0;
+      for (const card of cards) {
+        const textOk = !q || card.dataset.search.includes(q);
+        const filterOk = active.length === 0 || active.some((name) => card.dataset[name] === "true");
+        const show = textOk && filterOk;
+        card.style.display = show ? "" : "none";
+        if (show) visible += 1;
+      }
+      els.empty.style.display = visible ? "none" : "block";
+    }
+
+    function isFail(value) {
+      return String(value || "").includes("✕");
+    }
+
+    function formatDate(iso) {
+      const date = new Date(iso);
+      if (Number.isNaN(date.getTime())) return iso || "";
+      return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Bangkok" }).format(date);
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replace(/'/g, "&#39;");
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,2071 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&family=Prompt:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+  <title>Ad Compliance Report</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #ffffff;
+      --panel: #ffffff;
+      --panel-soft: #f5f5f3;
+      --text: #050505;
+      --muted: rgba(0, 0, 0, .58);
+      --muted-soft: rgba(0, 0, 0, .38);
+      --line: rgba(0, 0, 0, .10);
+      --accent: #083BEC;
+      --issue: #D92D20;
+      --issue-bg: rgba(217, 45, 32, .08);
+      --issue-line: rgba(217, 45, 32, .24);
+      --issue-red: #FF3B30;
+      --ok-green: #34C759;
+      --policy: var(--issue-red);
+      --spelling: var(--ok-green);
+      --placement: var(--issue-red);
+      --danger: #083BEC;
+      --danger-bg: rgba(8, 59, 236, .06);
+      --success: #083BEC;
+      --code: rgba(0, 0, 0, .035);
+      --warning: #083BEC;
+      --warning-bg: rgba(8, 59, 236, .06);
+      --shadow: 0 16px 44px rgba(0, 0, 0, .055);
+      --soft-shadow: 0 8px 24px rgba(0, 0, 0, .045);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Google Sans", "Prompt", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+    header {
+      color: var(--text);
+      padding: 30px 32px 12px;
+      background: transparent;
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; }
+    header .wrap {
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      padding: 0;
+    }
+    main { max-width: 1280px; margin: 0 auto; padding: 10px 32px 36px; }
+    .hero {
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+    }
+    .hero-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      color: #fff;
+      box-shadow: 0 18px 42px rgba(0, 0, 0, .18);
+      overflow: hidden;
+    }
+    .hero-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    h1 { margin: 0 0 2px; font-size: 32px; line-height: 1.08; letter-spacing: 0; }
+    h2 {
+      margin: 0 0 10px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .subhead { color: var(--muted); margin: 0; font-size: 15px; }
+    .account-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-top: 22px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .account-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 34px;
+      padding: 0 14px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid var(--line);
+      box-shadow: var(--soft-shadow);
+    }
+    .account-pill b { color: var(--text); font-weight: 650; }
+    .account-pill code {
+      padding: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      border-radius: 0;
+    }
+    .account-divider {
+      width: 1px;
+      height: 16px;
+      background: var(--line);
+    }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 34px;
+    }
+    .metric {
+      background: #fff;
+      border: 1px solid rgba(0, 0, 0, .08);
+      border-radius: 8px;
+      padding: 14px 16px;
+      box-shadow: 0 14px 34px rgba(0, 0, 0, .06), 0 1px 0 rgba(0, 0, 0, .04);
+    }
+    .metric.is-issue { border-left: 3px solid var(--issue-red); }
+    .metric.is-clear { border-left: 3px solid var(--ok-green); }
+    .metric.is-issue .big-number { color: var(--issue-red); }
+    .metric.is-clear .big-number { color: var(--ok-green); }
+    .metric.is-issue .metric-icon {
+      color: var(--issue-red);
+      background: rgba(255, 59, 48, .10);
+    }
+    .metric.is-clear .metric-icon {
+      color: var(--ok-green);
+      background: rgba(52, 199, 89, .12);
+    }
+    .metric.is-neutral { border-left: 0; }
+    .metric.is-neutral .big-number { color: var(--text); }
+    .metric.is-neutral .metric-icon {
+      color: var(--text);
+      background: rgba(0, 0, 0, .055);
+    }
+    .metric-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .metric-icon {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: rgba(8, 59, 236, .075);
+      color: var(--accent);
+      font-size: 12px;
+      line-height: 1;
+    }
+    .metric-icon svg {
+      width: 15px;
+      height: 15px;
+      display: block;
+      stroke: currentColor;
+    }
+    .metric b {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0;
+    }
+    .metric span { font-size: 13px; font-weight: 500; color: var(--muted); }
+    .metric .big-number {
+      display: inline-block;
+      font-size: 30px;
+      line-height: 1;
+      margin-right: 6px;
+      color: var(--text);
+      font-weight: 750;
+    }
+    .metric-fraction {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 400;
+    }
+    .result-count {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin: 28px 0 18px;
+      position: sticky;
+      top: 12px;
+      z-index: 5;
+      padding: 8px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--soft-shadow);
+      backdrop-filter: blur(12px);
+    }
+    input[type="search"] {
+      flex: 1 1 280px;
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 12px;
+      font: inherit;
+      background: #fff;
+      color: var(--text);
+    }
+    input[type="search"]::placeholder { color: #8c8f97; }
+    .filter {
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+      font-size: 13px;
+      transition: border-color .16s ease, color .16s ease, background .16s ease;
+    }
+    .filter input { accent-color: var(--accent); }
+    .filter:has(input:checked) {
+      background: rgba(8, 59, 236, .06);
+      border-color: rgba(8, 59, 236, .25);
+      color: var(--accent);
+    }
+    .resolution-filters {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .resolution-option {
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 12px;
+      border-radius: 6px;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 13px;
+      user-select: none;
+    }
+    .resolution-option input { display: none; }
+    .resolution-option:has(input:checked) {
+      background: #050505;
+      color: #fff;
+    }
+    #groups {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+    .group {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      min-height: 136px;
+      display: flex;
+      flex-direction: column;
+      transition: opacity .16s ease, border-color .16s ease, box-shadow .16s ease;
+    }
+    .group.is-resolved {
+      border-color: rgba(52, 199, 89, .28);
+      box-shadow: 0 12px 34px rgba(52, 199, 89, .08);
+    }
+    .group.is-resolved .creative,
+    .group.is-resolved .status {
+      opacity: .56;
+    }
+    .group-head {
+      padding: 20px 22px 16px;
+      border-bottom: 0;
+      flex: 1;
+    }
+    .group-title-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .creative {
+      font-size: 17px;
+      line-height: 1.25;
+      font-weight: 750;
+      margin: 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .used-line {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .ids {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+    .resolved-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex: 0 0 auto;
+      min-height: 28px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 12px;
+      user-select: none;
+      background: #fff;
+    }
+    .resolved-toggle input {
+      width: 13px;
+      height: 13px;
+      margin: 0;
+      appearance: none;
+      border: 1px solid rgba(0, 0, 0, .22);
+      border-radius: 4px;
+      background: #fff;
+      display: inline-grid;
+      place-items: center;
+      position: relative;
+    }
+    .resolved-toggle input:checked {
+      background: var(--spelling);
+      border-color: var(--spelling);
+    }
+    .resolved-toggle input:checked::after {
+      content: "";
+      width: 4px;
+      height: 7px;
+      border: solid #fff;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg) translate(-1px, -1px);
+    }
+    .group.is-resolved .resolved-toggle {
+      color: #1f8f45;
+      border-color: rgba(52, 199, 89, .32);
+      background: rgba(52, 199, 89, .08);
+    }
+    code {
+      background: var(--code);
+      border: 0;
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      color: #4b5563;
+    }
+    .status {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 0;
+      border-bottom: 0;
+      background: transparent;
+      margin-top: 18px;
+    }
+    .status-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .status-item b { color: var(--text); font-weight: 600; }
+    .status-item.has-fail {
+      color: var(--issue);
+      background: var(--issue-bg);
+      border-color: var(--issue-line);
+    }
+    .status-item.has-warning {
+      color: var(--accent);
+      background: rgba(8, 59, 236, .06);
+      border-color: rgba(8, 59, 236, .18);
+    }
+    .fail { color: var(--danger); font-weight: 650; }
+    .na { color: var(--muted); }
+    .body {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 0;
+      flex: 1;
+      min-height: 0;
+    }
+    .copy {
+      padding: 0;
+      margin-top: auto;
+    }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #fbfbfd;
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      max-height: 96px;
+      overflow: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+    .card-finding {
+      padding: 10px 14px 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .details-button {
+      width: 100%;
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      border: 0;
+      border-top: 1px solid var(--line);
+      border-radius: 0;
+      background: #fff;
+      color: var(--muted);
+      cursor: pointer;
+      font-weight: 600;
+      font: inherit;
+      font-size: 12px;
+    }
+    .details-button:hover { background: rgba(8, 59, 236, .035); color: var(--accent); }
+    .screenshots-section { display: none; }
+    .screenshots-section h2 {
+      display: none;
+    }
+    .shots {
+      position: relative;
+      padding: 0;
+      max-width: none;
+    }
+    .shot {
+      margin: 0;
+      display: none;
+    }
+    .shot.is-active {
+      display: block;
+    }
+    .shot img {
+      width: 100%;
+      height: 300px;
+      object-fit: contain;
+      background: #f2f2f7;
+      border: 0;
+      border-radius: 0;
+      display: block;
+      cursor: zoom-in;
+    }
+    .shot-title {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.3;
+      margin: 0;
+      padding: 8px 10px 10px;
+      background: #fff;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .carousel-bar {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      right: 8px;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0;
+      pointer-events: none;
+    }
+    .shot-count {
+      color: var(--muted);
+      font-size: 12px;
+      min-height: 28px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 8px;
+      border-radius: 8px;
+      background: rgba(255,255,255,.86);
+      border: 1px solid rgba(60,60,67,.12);
+      backdrop-filter: blur(12px);
+    }
+    .shot-buttons {
+      display: inline-flex;
+      gap: 6px;
+      pointer-events: auto;
+    }
+    .shot-btn {
+      min-width: 30px;
+      min-height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      line-height: 1;
+    }
+    .shot-btn:hover { background: #f7f7fa; }
+    .shot-dots {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 38px;
+      z-index: 2;
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+    }
+    .shot-dot {
+      width: 6px;
+      height: 6px;
+      border: 0;
+      border-radius: 999px;
+      background: #c7c9d1;
+      padding: 0;
+      cursor: pointer;
+    }
+    .shot-dot.is-active {
+      width: 18px;
+      background: #202124;
+    }
+    .context {
+      display: none;
+      padding: 0 14px 12px;
+      color: var(--muted);
+      font-size: 12px;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .no-shot-preview {
+      display: none;
+      padding: 12px 14px 0;
+      flex: 1;
+    }
+    .no-shot-preview pre {
+      max-height: 220px;
+    }
+    .notice {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      box-shadow: var(--soft-shadow);
+    }
+    .empty { color: var(--muted); padding: 24px; text-align: center; display: none; }
+    dialog {
+      width: min(92vw, 980px);
+      border: 0;
+      border-radius: 8px;
+      padding: 0;
+      background: transparent;
+    }
+    dialog::backdrop { background: rgba(0,0,0,.62); backdrop-filter: blur(8px); }
+    .modal {
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 30px 80px rgba(0,0,0,.3);
+    }
+    .modal-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .modal button {
+      border: 0;
+      background: #f2f2f7;
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font: inherit;
+    }
+    .modal img {
+      display: block;
+      width: 100%;
+      max-height: 82vh;
+      object-fit: contain;
+      background: #f5f5f7;
+    }
+    .detail-modal {
+      width: min(92vw, 920px);
+    }
+    .detail-body {
+      padding: 0;
+      max-height: 78vh;
+      overflow: auto;
+      background: #fff;
+    }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      align-items: stretch;
+      min-height: 560px;
+    }
+    .detail-panel { padding: 16px 18px; min-width: 0; }
+    .detail-panel + .detail-panel { border-left: 1px solid var(--line); }
+    .detail-panel.is-empty {
+      background: #fff;
+    }
+    .panel-label {
+      margin: 0 0 12px;
+      color: var(--muted-soft);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .detail-body h3 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .detail-section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0 0 8px;
+    }
+    .detail-section-head h3 { margin: 0; }
+    .copy-revised {
+      min-height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--muted);
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+      padding: 0 10px;
+    }
+    .copy-revised:hover {
+      border-color: rgba(8, 59, 236, .25);
+      color: var(--accent);
+      background: rgba(8, 59, 236, .035);
+    }
+    .detail-body ul {
+      margin: 0 0 16px;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .detail-body pre {
+      max-height: none;
+      min-height: 220px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .ad-id-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 6px 10px;
+      background: #fafafa;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .ad-id-label {
+      color: var(--muted-soft);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .ad-id-value {
+      flex: 1;
+      min-width: 0;
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 650;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .modal .mini-copy {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+      border-radius: 6px;
+      min-height: 26px;
+      padding: 0 9px;
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+    }
+    .modal .mini-copy:hover { background: #f7f7f7; color: var(--text); }
+    .verdict-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--issue-line);
+      background: var(--issue-bg);
+      margin-bottom: 12px;
+    }
+    .revised-card + .verdict-bar {
+      margin-top: 12px;
+    }
+    .verdict-bar.is-clear {
+      border-color: rgba(52, 199, 89, .24);
+      background: rgba(52, 199, 89, .08);
+    }
+    .verdict-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--issue-red);
+      flex: 0 0 auto;
+    }
+    .verdict-bar.is-clear .verdict-dot { background: var(--ok-green); }
+    .verdict-text {
+      color: var(--issue-red);
+      font-size: 13px;
+      font-weight: 650;
+    }
+    .verdict-bar.is-clear .verdict-text { color: #1a7a45; }
+    .verdict-sub {
+      margin-top: 1px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .issue-stack { display: grid; gap: 8px; margin-bottom: 14px; }
+    .issue-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .issue-card summary {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: start;
+      padding: 10px 12px;
+      cursor: pointer;
+      list-style: none;
+    }
+    .issue-card summary::-webkit-details-marker { display: none; }
+    .issue-card summary:hover { background: #fafafa; }
+    .issue-card summary::after {
+      content: "›";
+      color: var(--muted-soft);
+      font-size: 18px;
+      line-height: 1;
+      transform: rotate(0deg);
+      transition: transform .15s ease;
+    }
+    .issue-card[open] summary::after { transform: rotate(90deg); }
+    .issue-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      border-radius: 999px;
+      padding: 0 8px;
+      border: 1px solid var(--issue-line);
+      background: var(--issue-bg);
+      color: var(--issue-red);
+      font-size: 11px;
+      font-weight: 650;
+      text-transform: uppercase;
+    }
+    .issue-pill.is-pass {
+      border-color: rgba(52, 199, 89, .24);
+      background: rgba(52, 199, 89, .08);
+      color: #1a7a45;
+    }
+    .issue-title { color: var(--text); font-size: 13px; font-weight: 650; line-height: 1.35; }
+    .issue-reason { margin-top: 2px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+    .issue-body {
+      padding: 10px 12px;
+      border-top: 1px solid var(--line);
+      background: #fff;
+    }
+    .issue-row {
+      display: grid;
+      grid-template-columns: 78px minmax(0, 1fr);
+      gap: 8px;
+      margin-bottom: 7px;
+      font-size: 12px;
+    }
+    .issue-row:last-child { margin-bottom: 0; }
+    .issue-row-label { color: var(--muted-soft); }
+    .issue-row-value { color: var(--text); line-height: 1.45; overflow-wrap: anywhere; }
+    .issue-row-value.is-danger {
+      color: var(--issue-red);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11.5px;
+    }
+    .issue-row-value.is-suggest { color: #1a7a45; }
+    .spelling-list {
+      display: grid;
+      gap: 0;
+      margin: -10px -12px;
+    }
+    .spelling-correction {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      min-height: 50px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .spelling-correction:last-child { border-bottom: 0; }
+    .spell-token {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      min-height: 24px;
+      padding: 0 9px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 650;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+    .spell-token.is-original {
+      color: #b3261e;
+      background: rgba(255, 59, 48, .09);
+      text-decoration: line-through;
+      text-decoration-thickness: 1px;
+    }
+    .spell-token.is-corrected {
+      color: #1a7a45;
+      background: rgba(52, 199, 89, .13);
+    }
+    .spell-arrow {
+      color: var(--muted-soft);
+      font-weight: 650;
+    }
+    .spelling-copy {
+      min-width: 32px;
+      min-height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--muted);
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+      line-height: 1;
+    }
+    .spelling-copy:hover {
+      border-color: rgba(8, 59, 236, .25);
+      color: var(--accent);
+      background: rgba(8, 59, 236, .035);
+    }
+    .affected-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+    .affected-title {
+      margin: 0;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 650;
+    }
+    .affected-sub {
+      margin: 2px 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .affected-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 0 0 8px;
+    }
+    .affected-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      max-width: 100%;
+    }
+    .affected-chip[hidden] { display: none; }
+    .affected-chip code { font-size: 11px; }
+    .affected-copy {
+      width: 22px;
+      height: 22px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      font-size: 12px;
+      line-height: 1;
+    }
+    .affected-copy:hover {
+      color: var(--accent);
+      border-color: rgba(8, 59, 236, .25);
+      background: rgba(8, 59, 236, .035);
+    }
+    .affected-more {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 0;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+    .modal button.affected-more {
+      border: 0;
+      background: transparent;
+      border-radius: 0;
+      padding: 0;
+      min-height: 0;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+    .affected-more:hover { color: var(--text); }
+    .affected-note {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    .ref-tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 0 8px;
+      margin: 0 4px 4px 0;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fafafa;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.25;
+    }
+    .revised-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .revised-card + .issue-stack { margin-top: 12px; }
+    .revised-card .detail-section-head {
+      padding: 10px 12px;
+      margin: 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .modal .revised-card .copy-revised {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+    }
+    .revised-card pre {
+      margin: 0;
+      border: 0;
+      border-radius: 0;
+      background: #fafafa;
+    }
+    .revised-card pre {
+      max-height: 58vh;
+    }
+    .detail-shots {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .detail-shot {
+      margin: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f5f5f7;
+    }
+    .detail-shot img {
+      width: 100%;
+      height: 220px;
+      object-fit: contain;
+      display: block;
+      cursor: zoom-in;
+    }
+    .detail-shot figcaption {
+      display: grid;
+      gap: 3px;
+      padding: 8px 10px;
+      color: var(--muted);
+      font-size: 12px;
+      background: #fff;
+    }
+    .shot-meta {
+      color: var(--text);
+      font-weight: 650;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+    }
+    @media (max-width: 860px) {
+      header, main { padding-left: 16px; padding-right: 16px; }
+      .summary { grid-template-columns: 1fr; }
+      #groups { grid-template-columns: 1fr; }
+      #groups { grid-auto-rows: auto; }
+      h1 { font-size: 34px; }
+      .subhead { font-size: 16px; }
+      .group-head { padding: 24px; }
+      .creative { font-size: 22px; }
+      .shot img { height: 240px; }
+      .detail-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="hero">
+        <div class="hero-icon" aria-hidden="true">
+          <img src="./ad-compliance-icon.png" alt="">
+        </div>
+        <div>
+          <h1>Ad Compliance Alert</h1>
+          <p class="subhead">Monitor and resolve ad compliance issues</p>
+        </div>
+      </div>
+      <p id="subhead" class="account-line">Loading report...</p>
+      <section class="summary" aria-label="Summary">
+        <div class="metric" id="metric-card-ads"><div class="metric-top"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M8 4h8l3 3v13H5V4h3Z" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 12h6M9 16h6M15 4v4h4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><b>Ads</b></div><span id="metric-ads">-</span></div>
+        <div class="metric" id="metric-card-policy"><div class="metric-top"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5 19 6v5.5c0 4.1-2.7 7.4-7 9-4.3-1.6-7-4.9-7-9V6l7-2.5Z" stroke-width="1.8" stroke-linejoin="round"/><path d="m9.5 9.5 5 5m0-5-5 5" stroke-width="1.8" stroke-linecap="round"/></svg></span><b>Policy</b></div><span id="metric-policy">-</span></div>
+        <div class="metric" id="metric-card-spelling"><div class="metric-top"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M5 6h14M12 6v12M9 18h6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><b>Spelling</b></div><span id="metric-spelling">-</span></div>
+        <div class="metric" id="metric-card-placement"><div class="metric-top"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16v14H4V5Z" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 9h8M8 13h4" stroke-width="1.8" stroke-linecap="round"/></svg></span><b>Placement</b></div><span id="metric-placement">-</span></div>
+      </section>
+    </div>
+  </header>
+  <main>
+    <section class="toolbar" aria-label="Controls">
+      <input id="search" type="search" placeholder="Search creative name, ad id, finding, revised text">
+      <label class="filter"><input type="checkbox" data-filter="policy"> Policy</label>
+      <label class="filter"><input type="checkbox" data-filter="spelling"> Spelling</label>
+      <label class="filter"><input type="checkbox" data-filter="placement"> Placement</label>
+      <label class="filter"><input type="checkbox" data-filter="screenshot"> Screenshot</label>
+      <div class="resolution-filters" aria-label="Resolution filters">
+        <label class="resolution-option"><input type="radio" name="resolution" value="all" checked>All</label>
+        <label class="resolution-option"><input type="radio" name="resolution" value="open">Open</label>
+        <label class="resolution-option"><input type="radio" name="resolution" value="resolved">Resolved</label>
+      </div>
+    </section>
+    <p id="result-count" class="result-count">Showing 0 creatives</p>
+    <section id="groups"></section>
+    <div id="empty" class="empty">No issue groups match the current filters.</div>
+    <div id="notice" class="notice" hidden></div>
+  </main>
+  <dialog id="image-modal">
+    <div class="modal">
+      <div class="modal-bar">
+        <span id="modal-title">Placement screenshot</span>
+        <button id="modal-close" type="button">Close</button>
+      </div>
+      <img id="modal-image" alt="Placement screenshot">
+    </div>
+  </dialog>
+  <dialog id="detail-modal" class="detail-modal">
+    <div class="modal">
+      <div class="modal-bar">
+        <span id="detail-title">Ad details</span>
+        <button id="detail-close" type="button">Close</button>
+      </div>
+      <div id="detail-body" class="detail-body"></div>
+    </div>
+  </dialog>
+  <script>
+    const els = {
+      subhead: document.querySelector("#subhead"),
+      adsCard: document.querySelector("#metric-card-ads"),
+      policyCard: document.querySelector("#metric-card-policy"),
+      spellingCard: document.querySelector("#metric-card-spelling"),
+      placementCard: document.querySelector("#metric-card-placement"),
+      ads: document.querySelector("#metric-ads"),
+      policy: document.querySelector("#metric-policy"),
+      spelling: document.querySelector("#metric-spelling"),
+      placement: document.querySelector("#metric-placement"),
+      groups: document.querySelector("#groups"),
+      empty: document.querySelector("#empty"),
+      notice: document.querySelector("#notice"),
+      search: document.querySelector("#search"),
+      filters: Array.from(document.querySelectorAll("[data-filter]")),
+      resolutionFilters: Array.from(document.querySelectorAll("input[name='resolution']")),
+      resultCount: document.querySelector("#result-count"),
+      modal: document.querySelector("#image-modal"),
+      modalImage: document.querySelector("#modal-image"),
+      modalTitle: document.querySelector("#modal-title"),
+      modalClose: document.querySelector("#modal-close"),
+      detailModal: document.querySelector("#detail-modal"),
+      detailTitle: document.querySelector("#detail-title"),
+      detailBody: document.querySelector("#detail-body"),
+      detailClose: document.querySelector("#detail-close")
+    };
+    const appState = {
+      reportId: "",
+      resolved: new Map(),
+      storageKey: "",
+      remoteStateEnabled: window.location.protocol !== "file:",
+      totals: {
+        creatives: 0,
+        ads: 0,
+        policy: 0,
+        spelling: 0,
+        placement: 0
+      }
+    };
+
+    init().catch((error) => {
+      els.notice.hidden = false;
+      els.notice.textContent = error.message;
+    });
+
+    async function init() {
+      const params = new URLSearchParams(window.location.search);
+      const reportUrl = params.get("report");
+      if (!reportUrl) {
+        throw new Error("Missing report URL. Open this page with ?report=<public-report-json-url>");
+      }
+      const response = await fetch(reportUrl, { mode: "cors" });
+      if (!response.ok) throw new Error("Could not load report JSON: " + response.status);
+      const alert = await response.json();
+      const report = normalizeAlert(alert);
+      appState.reportId = createReportId(reportUrl, alert);
+      appState.storageKey = `adComplianceResolved:${appState.reportId}`;
+      renderReport(report);
+      bindFilters();
+      await loadIssueStates();
+      applyResolvedStates();
+      applyFilters();
+    }
+
+    function normalizeAlert(alert) {
+      const groups = (alert.threadMessages || [])
+        .map(normalizeThreadMessage)
+        .sort(compareGroups);
+      return {
+        meta: alert.meta || {},
+        groups
+      };
+    }
+
+    function compareGroups(left, right) {
+      const scoreDiff = groupScore(left) - groupScore(right);
+      if (scoreDiff !== 0) return scoreDiff;
+      return left.creativeName.localeCompare(right.creativeName);
+    }
+
+    function groupScore(group) {
+      if (group.screenshots.length) return 0;
+      if (isFail(group.status.placement)) return 1;
+      if (isFail(group.status.policy)) return 2;
+      if (isFail(group.status.spelling)) return 3;
+      return 9;
+    }
+
+    function normalizeThreadMessage(message, index) {
+      const blocks = message.blocks || [];
+      const headerText = blocks[0]?.text?.text || "";
+      const [titleLine = "", adIdLine = ""] = headerText.split("\n");
+      const titleMatch = titleLine.match(/^\*(.+)\*\s+·\s+(\d+)\s+ads?/);
+      const creativeName = titleMatch?.[1] || titleLine.replace(/\*/g, "") || "Issue group " + (index + 1);
+      const usedInAds = Number(titleMatch?.[2] || 0);
+      const adIds = Array.from(adIdLine.matchAll(/`([^`]+)`/g)).map((match) => match[1]);
+      const statusText = blocks.find((block) => {
+        const text = block.text?.text || "";
+        return text.includes("*Policy:*") || text.includes("Policy:");
+      })?.text?.text || "";
+      const status = parseStatus(statusText);
+      const placementIssues = parsePlacementIssues(blocks);
+      const revisedText = parseRevisedText(blocks);
+      const screenshots = dedupeScreenshots(blocks
+        .filter((block) => block.type === "image" && block.image_url)
+        .map((block) => ({ url: block.image_url, title: block.title?.text || "Ad placement preview" })));
+      const context = blocks.find((block) => block.type === "context")?.elements?.[0]?.text || "";
+      const key = message.key || createIssueKey(creativeName, adIds, index);
+      return { key, creativeName, usedInAds, adIds, status, placementIssues, revisedText, screenshots, context, details: message.details || {} };
+    }
+
+    function parseStatus(text) {
+      const clean = text.replace(/\*/g, "");
+      return {
+        policy: matchLabel(clean, "Policy"),
+        spelling: matchLabel(clean, "Spelling"),
+        placement: matchLabel(clean, "Placement"),
+        image: matchLabel(clean, "Image")
+      };
+    }
+
+    function matchLabel(text, label) {
+      const pattern = new RegExp(label + ":\\s*([^\\n·]+(?:\\([^)]*\\))?)");
+      return (text.match(pattern)?.[1] || "N/A").trim();
+    }
+
+    function parsePlacementIssues(blocks) {
+      const block = blocks.find((item) => item.text?.text?.startsWith("*Placement issues*"));
+      if (!block) return [];
+      return block.text.text.split("\n").slice(1)
+        .map((line) => line.replace(/^-\s*/, "").trim())
+        .filter(Boolean)
+        .map((line) => line.replace(/`/g, ""));
+    }
+
+    function parseRevisedText(blocks) {
+      const block = blocks.find((item) => item.text?.text?.startsWith("*Revised text*"));
+      if (!block) return "N/A";
+      const match = block.text.text.match(/```([\s\S]*)```/);
+      return (match?.[1] || "N/A").trim();
+    }
+
+    function dedupeScreenshots(screenshots) {
+      const seen = new Set();
+      return screenshots.filter((item) => {
+        const key = item.url + ":" + item.title;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    function renderReport(report) {
+      const meta = report.meta;
+      const date = formatDate(meta.generatedAt);
+      els.subhead.innerHTML = `<span class="account-pill"><b>${escapeHtml(meta.clientName || meta.accountName || "Unknown client")}</b><span class="account-divider"></span><code>${escapeHtml(meta.accountId || "")}</code></span><span>${escapeHtml(date)}</span>`;
+      document.title = `${meta.clientName || "Ad Compliance"} Report`;
+      els.ads.innerHTML = metricValue(meta.adCount || 0, `${meta.creativeCount || 0} creatives`);
+      const pc = Number(meta.policyCreativeCount || 0);
+      const sc = Number(meta.spellingCreativeCount || 0);
+      const pl = Number(meta.placementAdCount || 0);
+      appState.totals = {
+        creatives: Number(meta.creativeCount || 0),
+        ads: Number(meta.adCount || 0),
+        policy: pc,
+        spelling: sc,
+        placement: pl
+      };
+      els.policy.innerHTML = metricFraction(pc, pc, "creatives");
+      els.spelling.innerHTML = metricFraction(sc, sc, "creatives");
+      els.placement.innerHTML = metricFraction(pl, pl, "ads");
+      setMetricNeutral(els.adsCard);
+      setMetricState(els.policyCard, pc);
+      setMetricState(els.spellingCard, sc);
+      setMetricState(els.placementCard, pl);
+      els.groups.innerHTML = report.groups.map(renderGroupCard).join("");
+      applyFilters();
+    }
+
+
+    function metricFraction(open, total, label) {
+      const fraction = total > 0 ? `${open}/${total}` : `0`;
+      return `<span class="big-number">${fraction}</span><span class="metric-fraction">${escapeHtml(label)}</span>`;
+    }
+
+    function setMetricState(card, count) {
+      if (!card) return;
+      card.classList.remove("is-neutral");
+      card.classList.toggle("is-issue", count > 0);
+      card.classList.toggle("is-clear", count === 0);
+    }
+
+    function setMetricNeutral(card) {
+      if (!card) return;
+      card.classList.remove("is-issue", "is-clear");
+      card.classList.add("is-neutral");
+    }
+
+    function renderGroupCard(group, index) {
+      const hasPolicy = isFail(group.status.policy);
+      const hasSpelling = isFail(group.status.spelling);
+      const hasPlacement = isFail(group.status.placement);
+      const hasScreenshot = group.screenshots.length > 0;
+      const usedInAds = Math.max(Number(group.usedInAds || group.adIds.length || 0), 1);
+      const placementIssueCount = hasPlacement ? getIssueCount(group.status.placement, 1) : 0;
+      const search = [group.creativeName, group.adIds.join(" "), Object.values(group.status).join(" "), group.placementIssues.join(" "), group.revisedText, group.context].join(" ").toLowerCase();
+      return `<article class="group" data-issue-key="${escapeAttr(group.key)}" data-sort-index="${index}" data-used-in-ads="${usedInAds}" data-affected-count="${usedInAds}" data-policy="${hasPolicy}" data-spelling="${hasSpelling}" data-placement="${hasPlacement}" data-policy-count="${hasPolicy ? usedInAds : 0}" data-spelling-count="${hasSpelling ? usedInAds : 0}" data-placement-count="${placementIssueCount}" data-screenshot="${hasScreenshot}" data-resolved="false" data-search="${escapeAttr(search)}">
+        <div class="group-head">
+          <div class="group-title-row">
+            <div>
+              <p class="creative">${escapeHtml(group.creativeName)}</p>
+              <p class="used-line">Used in ${escapeHtml(formatAdCount(usedInAds))}</p>
+            </div>
+            <label class="resolved-toggle"><input type="checkbox" data-resolve-toggle>Resolved</label>
+          </div>
+          <div class="status">
+            ${renderStatusItem("Policy", group.status.policy)}
+            ${renderStatusItem("Spelling", group.status.spelling)}
+            ${renderStatusItem("Placement", group.status.placement)}
+          </div>
+        </div>
+        <div class="body">
+          <section class="copy">
+            <button class="details-button" type="button"><span aria-hidden="true">⧉</span> Show details</button>
+            <template class="details-template">
+              ${renderDetailContent(group)}
+            </template>
+          </section>
+        </div>
+        ${group.context ? `<div class="context">${escapeHtml(group.context)}</div>` : ""}
+      </article>`;
+    }
+
+    function buildFindingSummary(group) {
+      if (group.placementIssues.length) {
+        return group.placementIssues[0].replace(/^Ad ID:\s*\S+\s*·\s*/, "");
+      }
+      if (group.context) return group.context;
+      return "";
+    }
+
+    function renderStatusItem(label, value) {
+      const display = formatStatusValue(label, value);
+      const fail = isFail(value);
+      const warning = String(value || "").includes("⚠");
+      const className = fail ? " has-fail" : warning ? " has-warning" : "";
+      return `<div class="status-item${className}">${escapeHtml(display)}</div>`;
+    }
+
+    function renderDetailContent(group) {
+      const screenshots = group.screenshots.length
+        ? `<div class="detail-shots">${group.screenshots.map((item) => renderDetailShot(item)).join("")}</div>`
+        : "";
+      const hasPlacementContent = group.screenshots.length > 0 || group.placementIssues.length > 0;
+      if (!hasPlacementContent) {
+        return `<div class="detail-grid">
+          <section class="detail-panel is-empty" aria-hidden="true"></section>
+          <section class="detail-panel">
+            <p class="panel-label">Policy &amp; spellcheck</p>
+            ${renderAffectedAdsCard(group)}
+            ${renderRevisedTextCard(group, true)}
+            ${renderVerdictBar(group)}
+            <div class="issue-stack">
+              ${renderPolicySpellCards(group)}
+            </div>
+          </section>
+        </div>`;
+      }
+      const placementPanel = hasPlacementContent ? `<section class="detail-panel">
+          <p class="panel-label">Placement</p>
+          ${screenshots}
+          <div class="issue-stack">
+            ${renderPlacementIssueCards(group)}
+          </div>
+        </section>` : "";
+      return `<div class="detail-grid">
+        ${placementPanel}
+        <section class="detail-panel">
+          <p class="panel-label">Policy &amp; spellcheck</p>
+          ${renderAffectedAdsCard(group)}
+          ${renderRevisedTextCard(group)}
+          ${renderVerdictBar(group)}
+          <div class="issue-stack">
+            ${renderPolicySpellCards(group)}
+          </div>
+        </section>
+      </div>`;
+    }
+
+    function renderAffectedAdsCard(group) {
+      const adIds = Array.from(new Set(group.adIds || [])).filter(Boolean);
+      if (!adIds.length) return "";
+      const visibleLimit = 5;
+      const hiddenCount = Math.max(0, adIds.length - visibleLimit);
+      return `<section class="affected-card">
+        <p class="affected-title">Affected ads</p>
+        <p class="affected-sub">${escapeHtml(formatAdCount(group.usedInAds || adIds.length))} use this same creative/caption</p>
+        <div class="affected-chips">
+          ${adIds.map((adId, index) => `<span class="affected-chip"${index >= visibleLimit ? " hidden data-extra-ad-id" : ""}><code>${escapeHtml(adId)}</code><button class="affected-copy" type="button" title="Copy ${escapeAttr(adId)}" aria-label="Copy ad ID ${escapeAttr(adId)}" data-copy-value="${escapeAttr(adId)}" data-copy-label="⧉">⧉</button></span>`).join("")}
+        </div>
+        ${hiddenCount ? `<button class="affected-more" type="button" data-toggle-ad-ids data-hidden-count="${hiddenCount}">See ${hiddenCount} more</button>` : ""}
+        <p class="affected-note">Fixing this creative/caption should resolve the issue across all listed ads.</p>
+      </section>`;
+    }
+
+    function formatAdCount(count) {
+      const n = Number(count || 0);
+      return `${n} ad${n === 1 ? "" : "s"}`;
+    }
+
+    function renderRevisedTextCard(group, showEmpty = false) {
+      const revisedText = String(group.revisedText || "").trim();
+      if (!revisedText || revisedText === "N/A") {
+        if (!showEmpty) return "";
+        return `<section class="revised-card">
+          <div class="detail-section-head">
+            <h3>Revised text</h3>
+          </div>
+          <pre>N/A</pre>
+        </section>`;
+      }
+      return `<section class="revised-card">
+        <div class="detail-section-head">
+          <h3>Revised text</h3>
+          <button class="copy-revised" type="button" data-copy-value="${escapeAttr(revisedText)}">Copy</button>
+        </div>
+        <pre>${escapeHtml(revisedText)}</pre>
+      </section>`;
+    }
+
+    function renderDetailShot(item) {
+      const parsed = parseScreenshotTitle(item.title);
+      const caption = [
+        parsed.placement ? prettyPlacementName(parsed.placement) : "",
+        parsed.adId ? `Ad ${parsed.adId}` : ""
+      ].filter(Boolean).join(" · ");
+      const reason = parsed.reason || item.title || "Ad placement preview";
+      return `<figure class="detail-shot">
+        <img src="${escapeAttr(item.url)}" alt="Ad placement preview" data-title="${escapeAttr(item.title)}">
+        <figcaption>
+          ${caption ? `<span class="shot-meta">${escapeHtml(caption)}</span>` : ""}
+          <span>${escapeHtml(reason)}</span>
+        </figcaption>
+      </figure>`;
+    }
+
+    function renderVerdictBar(group) {
+      const issueCount = Number(isFail(group.status.policy)) + Number(isFail(group.status.spelling));
+      const clear = issueCount === 0;
+      return `<div class="verdict-bar${clear ? " is-clear" : ""}">
+        <span class="verdict-dot"></span>
+        <div>
+          <div class="verdict-text">${clear ? "ผ่าน" : `ไม่ผ่าน · ${issueCount} ประเด็น`}</div>
+          <div class="verdict-sub">${clear ? "ไม่พบ policy หรือ spelling issue" : "ต้องแก้ไขก่อนเผยแพร่"}</div>
+        </div>
+      </div>`;
+    }
+
+    function renderPlacementIssueCards(group) {
+      if (!group.placementIssues.length) {
+        return "";
+      }
+      return group.placementIssues.map((issue, index) => {
+        const parsed = parsePlacementIssueLine(issue);
+        return `<details class="issue-card"${index === 0 ? " open" : ""}>
+          <summary>
+            <span class="issue-pill">fail</span>
+            <span>
+              <span class="issue-title">${escapeHtml(prettyPlacementName(parsed.placement))}</span>
+              <span class="issue-reason">${escapeHtml(parsed.reason || issue)}</span>
+            </span>
+          </summary>
+          <div class="issue-body">
+            <div class="issue-row"><span class="issue-row-label">รายละเอียด</span><span class="issue-row-value">${escapeHtml(parsed.reason || issue)}</span></div>
+            ${parsed.adId && !group.screenshots.length ? `<div class="issue-row"><span class="issue-row-label">Ad ID</span><span class="issue-row-value">${escapeHtml(parsed.adId)}</span></div>` : ""}
+          </div>
+        </details>`;
+      }).join("");
+    }
+
+    function renderPolicySpellCards(group) {
+      const cards = [];
+      if (isFail(group.status.policy)) {
+        cards.push(renderPolicyIssueCards(group));
+      }
+      if (isFail(group.status.spelling)) {
+        cards.push(renderSpellingIssueCard(group));
+      }
+      return cards.join("");
+    }
+
+    function renderPolicyIssueCards(group) {
+      const policy = group.details?.policy || {};
+      const issues = Array.isArray(policy.issues) ? policy.issues.filter(Boolean) : [];
+      if (issues.length) {
+        return issues.map((issue, index) => renderPolicyV2IssueCard(issue, index)).join("");
+      }
+      return renderLegacyPolicyIssueCard(group);
+    }
+
+    function renderPolicyV2IssueCard(issue, index) {
+      const title = issue.issue_title || issue.category || "Policy issue";
+      const reason = issue.flagged_text || issue.issue_detail || "";
+      const references = [
+        issue.display_reference,
+        issue.reference_section,
+        issue.reference_locator,
+        ...(Array.isArray(issue.additional_references) ? issue.additional_references : [])
+      ].filter(Boolean);
+      return `<details class="issue-card"${index === 0 ? " open" : ""}>
+        <summary>
+          <span class="issue-pill">${escapeHtml(issue.verdict || "fail")}</span>
+          <span>
+            <span class="issue-title">${escapeHtml(title)}</span>
+            <span class="issue-reason">${escapeHtml(reason || issue.issue_detail || "Policy issue")}</span>
+          </span>
+        </summary>
+        <div class="issue-body">
+          ${issue.flagged_text ? `<div class="issue-row"><span class="issue-row-label">พบข้อความ</span><span class="issue-row-value is-danger">${escapeHtml(issue.flagged_text)}</span></div>` : ""}
+          ${issue.issue_detail ? `<div class="issue-row"><span class="issue-row-label">รายละเอียด</span><span class="issue-row-value">${escapeHtml(issue.issue_detail)}</span></div>` : ""}
+          ${issue.fix_note ? `<div class="issue-row"><span class="issue-row-label">แนะนำ</span><span class="issue-row-value is-suggest">${escapeHtml(issue.fix_note)}</span></div>` : ""}
+          ${references.length ? `<div class="issue-row"><span class="issue-row-label">อ้างอิง</span><span class="issue-row-value">${renderReferenceTags(references)}</span></div>` : ""}
+        </div>
+      </details>`;
+    }
+
+    function renderReferenceTags(references) {
+      return Array.from(new Set(references.map(formatReference).filter(Boolean)))
+        .map((item) => `<span class="ref-tag">${escapeHtml(item)}</span>`)
+        .join("");
+    }
+
+    function formatReference(reference) {
+      if (!reference) return "";
+      if (typeof reference === "string" || typeof reference === "number") {
+        return String(reference).trim();
+      }
+      if (typeof reference !== "object") return "";
+      const parts = [
+        reference.display_reference,
+        reference.reference_section,
+        reference.reference_locator,
+        reference.law_name,
+        reference.gazette_or_announcement
+      ].map((item) => String(item || "").trim()).filter(Boolean);
+      if (!parts.length) return "";
+      return Array.from(new Set(parts)).join(" | ");
+    }
+
+    function renderLegacyPolicyIssueCard(group) {
+      const policy = group.details?.policy || {};
+      const redFlags = policy.redFlags || [];
+      const yellowFlags = policy.yellowFlags || [];
+      const flags = [...redFlags, ...yellowFlags];
+      const fixNotes = policy.fixNotes || [];
+      const fallbackFinding = extractContextPart(group.context, "Policy") || group.context || "";
+      const title = redFlags.length ? "Policy red flag" : "Policy issue";
+      const reason = flags.length ? flags.join(" · ") : fallbackFinding;
+      return `<details class="issue-card" open>
+        <summary>
+          <span class="issue-pill">fail</span>
+          <span>
+            <span class="issue-title">${escapeHtml(title)}</span>
+            <span class="issue-reason">${escapeHtml(reason || group.status.policy)}</span>
+          </span>
+        </summary>
+        <div class="issue-body">
+          ${flags.length ? `<div class="issue-row"><span class="issue-row-label">พบข้อความ</span><span class="issue-row-value is-danger">${escapeHtml(flags.join(" · "))}</span></div>` : ""}
+          <div class="issue-row"><span class="issue-row-label">รายละเอียด</span><span class="issue-row-value">${escapeHtml(fixNotes[0] || fallbackFinding || "N/A")}</span></div>
+          ${fixNotes.slice(1).length ? `<div class="issue-row"><span class="issue-row-label">แนะนำ</span><span class="issue-row-value is-suggest">${escapeHtml(fixNotes.slice(1).join(" · "))}</span></div>` : ""}
+        </div>
+      </details>`;
+    }
+
+    function renderSpellingIssueCard(group) {
+      const spelling = group.details?.spelling || {};
+      const corrections = getSpellingCorrections(spelling);
+      const fallbackFinding = extractContextPart(group.context, "Spelling");
+      const count = corrections.length;
+      return `<details class="issue-card" open>
+        <summary>
+          <span class="issue-pill">fail</span>
+          <span>
+            <span class="issue-title">Spelling</span>
+            <span class="issue-reason">${count ? `${count} correction${count === 1 ? "" : "s"}` : escapeHtml(fallbackFinding || group.status.spelling)}</span>
+          </span>
+        </summary>
+        <div class="issue-body">
+          ${count ? `<div class="spelling-list">${corrections.map(renderSpellingCorrection).join("")}</div>` : `<div class="issue-row"><span class="issue-row-label">แก้เป็น</span><span class="issue-row-value is-suggest">${escapeHtml(fallbackFinding || "N/A")}</span></div>`}
+        </div>
+      </details>`;
+    }
+
+    function getSpellingCorrections(spelling) {
+      const seen = new Set();
+      const fromErrors = Array.isArray(spelling.errors)
+        ? spelling.errors.map((error) => ({
+          original: String(error?.original || error?.original_text || "").trim(),
+          corrected: String(error?.corrected || error?.corrected_text || "").trim()
+        }))
+        : [];
+      const fromFixes = Array.isArray(spelling.fixes)
+        ? spelling.fixes.map((fix) => {
+          const parts = String(fix || "").split("→");
+          return {
+            original: String(parts[0] || "").trim(),
+            corrected: String(parts.slice(1).join("→") || "").trim()
+          };
+        })
+        : [];
+      return [...fromErrors, ...fromFixes].filter((item) => {
+        if (!item.original && !item.corrected) return false;
+        const key = `${item.original}→${item.corrected}`.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    function renderSpellingCorrection(item) {
+      const copyValue = item.corrected || item.original;
+      return `<div class="spelling-correction">
+        <span class="spell-token is-original">${escapeHtml(item.original || "N/A")}</span>
+        <span class="spell-arrow">→</span>
+        <span class="spell-token is-corrected">${escapeHtml(item.corrected || "N/A")}</span>
+        <button class="spelling-copy" type="button" data-copy-value="${escapeAttr(copyValue)}" data-copy-label="⧉" title="Copy correction" aria-label="Copy correction">⧉</button>
+      </div>`;
+    }
+
+    function parsePlacementIssueLine(issue) {
+      const parts = String(issue || "").split(" · ").map((part) => part.trim()).filter(Boolean);
+      return {
+        adId: parts[0]?.replace(/^Ad ID:\s*/i, "") || "",
+        placement: parts[1] || "",
+        reason: parts.slice(2).join(" · ") || parts[0] || ""
+      };
+    }
+
+    function parseScreenshotTitle(title) {
+      const clean = String(title || "").replace(/^📐\s*/, "").trim();
+      const parts = clean.split(" · ").map((part) => part.trim()).filter(Boolean);
+      return {
+        placement: parts[0] || "",
+        adId: parts[1]?.replace(/^Ad\s+/i, "") || "",
+        reason: parts.slice(2).join(" · ")
+      };
+    }
+
+    function prettyPlacementName(value) {
+      return String(value || "Placement")
+        .split("_")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+        .join(" ");
+    }
+
+    function extractContextPart(context, label) {
+      const text = String(context || "").replace(/^⚑\s*/, "");
+      const pattern = new RegExp(`${label}:\\s*([^|]+)`, "i");
+      return (text.match(pattern)?.[1] || "").trim();
+    }
+
+    function renderScreenshotCarousel(screenshots, carouselId) {
+      const controls = screenshots.length > 1
+        ? `<div class="carousel-bar">
+            <span class="shot-count" data-shot-count>1 / ${screenshots.length}</span>
+            <span class="shot-buttons">
+              <button class="shot-btn" type="button" data-shot-prev aria-label="Previous screenshot">←</button>
+              <button class="shot-btn" type="button" data-shot-next aria-label="Next screenshot">→</button>
+            </span>
+          </div>
+          <div class="shot-dots">
+            ${screenshots.map((_, index) => `<button class="shot-dot${index === 0 ? " is-active" : ""}" type="button" data-shot-dot="${index}" aria-label="Show screenshot ${index + 1}"></button>`).join("")}
+          </div>`
+        : "";
+      return `<div class="shots" data-carousel-id="${escapeAttr(carouselId)}" data-active-shot="0">
+        ${controls}
+        ${screenshots.map((item, index) => renderScreenshot(item, index)).join("")}
+      </div>`;
+    }
+
+    function renderScreenshot(item, index) {
+      return `<figure class="shot${index === 0 ? " is-active" : ""}">
+        <img src="${escapeAttr(item.url)}" alt="Ad placement preview" data-title="${escapeAttr(item.title)}">
+        <figcaption class="shot-title">${escapeHtml(item.title)}</figcaption>
+      </figure>`;
+    }
+
+    function bindFilters() {
+      els.search.addEventListener("input", applyFilters);
+      els.filters.forEach((item) => item.addEventListener("change", applyFilters));
+      els.resolutionFilters.forEach((item) => item.addEventListener("change", applyFilters));
+      els.groups.addEventListener("click", (event) => {
+        const resolveToggle = event.target.closest("[data-resolve-toggle]");
+        if (resolveToggle) {
+          const card = resolveToggle.closest(".group");
+          setResolved(card, resolveToggle.checked, { persist: true });
+          return;
+        }
+
+        const detailsButton = event.target.closest(".details-button");
+        if (detailsButton) {
+          const card = detailsButton.closest(".group");
+          const title = card.querySelector(".creative")?.textContent || "Ad details";
+          const template = card.querySelector(".details-template");
+          els.detailTitle.textContent = title;
+          els.detailBody.innerHTML = template?.innerHTML || "";
+          els.detailModal.showModal();
+          return;
+        }
+
+        const carouselButton = event.target.closest("[data-shot-prev], [data-shot-next], [data-shot-dot]");
+        if (carouselButton) {
+          const carousel = carouselButton.closest(".shots");
+          const current = Number(carousel.dataset.activeShot || "0");
+          const slides = Array.from(carousel.querySelectorAll(".shot"));
+          let next = current;
+          if (carouselButton.matches("[data-shot-prev]")) next = current - 1;
+          if (carouselButton.matches("[data-shot-next]")) next = current + 1;
+          if (carouselButton.matches("[data-shot-dot]")) next = Number(carouselButton.dataset.shotDot || "0");
+          updateCarousel(carousel, ((next % slides.length) + slides.length) % slides.length);
+          return;
+        }
+
+        const image = event.target.closest(".shot img");
+        const detailImage = event.target.closest(".detail-shot img");
+        if (detailImage) {
+          els.modalImage.src = detailImage.src;
+          els.modalTitle.textContent = detailImage.dataset.title || "Placement screenshot";
+          els.modal.showModal();
+          return;
+        }
+        if (!image) return;
+        els.modalImage.src = image.src;
+        els.modalTitle.textContent = image.dataset.title || "Placement screenshot";
+        els.modal.showModal();
+      });
+      els.modalClose.addEventListener("click", () => els.modal.close());
+      els.modal.addEventListener("click", (event) => {
+        if (event.target === els.modal) els.modal.close();
+      });
+      els.detailClose.addEventListener("click", () => els.detailModal.close());
+      els.detailBody.addEventListener("click", (event) => {
+        const toggleAdIds = event.target.closest("[data-toggle-ad-ids]");
+        if (toggleAdIds) {
+          const affectedCard = toggleAdIds.closest(".affected-card");
+          const extraItems = Array.from(affectedCard.querySelectorAll("[data-extra-ad-id]"));
+          const isExpanded = toggleAdIds.dataset.expanded === "true";
+          extraItems.forEach((item) => {
+            item.hidden = isExpanded;
+          });
+          toggleAdIds.dataset.expanded = isExpanded ? "false" : "true";
+          toggleAdIds.textContent = isExpanded
+            ? `See ${toggleAdIds.dataset.hiddenCount} more`
+            : "See less";
+          return;
+        }
+        const copyButton = event.target.closest("[data-copy-value]");
+        if (copyButton) {
+          copyText(copyButton.dataset.copyValue || "");
+          const originalText = copyButton.dataset.copyLabel || copyButton.textContent;
+          const copiedText = copyButton.classList.contains("affected-copy") ? "✓" : "Copied";
+          copyButton.textContent = copiedText;
+          setTimeout(() => {
+            copyButton.textContent = originalText;
+          }, 1400);
+          return;
+        }
+        const image = event.target.closest(".detail-shot img");
+        if (!image) return;
+        els.modalImage.src = image.src;
+        els.modalTitle.textContent = image.dataset.title || "Placement screenshot";
+        els.modal.showModal();
+      });
+      els.detailModal.addEventListener("click", (event) => {
+        if (event.target === els.detailModal) els.detailModal.close();
+      });
+    }
+
+    function updateCarousel(carousel, activeIndex) {
+      const slides = Array.from(carousel.querySelectorAll(".shot"));
+      const dots = Array.from(carousel.querySelectorAll(".shot-dot"));
+      carousel.dataset.activeShot = String(activeIndex);
+      slides.forEach((slide, index) => slide.classList.toggle("is-active", index === activeIndex));
+      dots.forEach((dot, index) => dot.classList.toggle("is-active", index === activeIndex));
+      const count = carousel.querySelector("[data-shot-count]");
+      if (count) count.textContent = `${activeIndex + 1} / ${slides.length}`;
+    }
+
+    function applyFilters() {
+      const cards = Array.from(document.querySelectorAll(".group"));
+      sortCardsByResolution(cards);
+      const q = els.search.value.trim().toLowerCase();
+      const active = els.filters.filter((item) => item.checked).map((item) => item.dataset.filter);
+      const resolution = els.resolutionFilters.find((item) => item.checked)?.value || "all";
+      let visible = 0;
+      let resolved = 0;
+      for (const card of cards) {
+        const textOk = !q || card.dataset.search.includes(q);
+        const filterOk = active.length === 0 || active.some((name) => card.dataset[name] === "true");
+        const isResolved = card.dataset.resolved === "true";
+        const resolutionOk =
+          resolution === "all" ||
+          (resolution === "resolved" && isResolved) ||
+          (resolution === "open" && !isResolved);
+        const show = textOk && filterOk && resolutionOk;
+        card.style.display = show ? "" : "none";
+        if (show) visible += 1;
+        if (isResolved) resolved += 1;
+      }
+      els.empty.style.display = visible ? "none" : "block";
+      if (els.resultCount) {
+        els.resultCount.innerHTML = `Showing <b>${visible}</b> of <b>${cards.length}</b> creatives · <b>${resolved}</b> resolved`;
+      }
+      updateBreakdownFromResolved(cards);
+    }
+
+    function sortCardsByResolution(cards) {
+      cards
+        .slice()
+        .sort((left, right) => {
+          const leftResolved = left.dataset.resolved === "true" ? 1 : 0;
+          const rightResolved = right.dataset.resolved === "true" ? 1 : 0;
+          if (leftResolved !== rightResolved) return leftResolved - rightResolved;
+          return Number(left.dataset.sortIndex || 0) - Number(right.dataset.sortIndex || 0);
+        })
+        .forEach((card) => els.groups.appendChild(card));
+    }
+
+    function updateBreakdownFromResolved(cards) {
+      const issueWeights = cards.reduce(
+        (acc, card) => {
+          acc.policy += Number(card.dataset.policyCount || 0);
+          acc.spelling += Number(card.dataset.spellingCount || 0);
+          acc.placement += Number(card.dataset.placementCount || 0);
+          acc.affected += Number(card.dataset.affectedCount || 0);
+          return acc;
+        },
+        { policy: 0, spelling: 0, placement: 0, affected: 0 }
+      );
+      const resolvedCounts = cards.reduce(
+        (acc, card) => {
+          if (card.dataset.resolved !== "true") return acc;
+          acc.policy += Number(card.dataset.policyCount || 0);
+          acc.spelling += Number(card.dataset.spellingCount || 0);
+          acc.placement += Number(card.dataset.placementCount || 0);
+          acc.affected += Number(card.dataset.affectedCount || 0);
+          return acc;
+        },
+        { policy: 0, spelling: 0, placement: 0, affected: 0 }
+      );
+      const totals = {
+        ads: Number(appState.totals.ads || issueWeights.affected || 0),
+        creatives: Number(appState.totals.creatives || issueWeights.affected || 0),
+        policy: Number(appState.totals.policy || issueWeights.policy || 0),
+        spelling: Number(appState.totals.spelling || issueWeights.spelling || 0),
+        placement: Number(appState.totals.placement || issueWeights.placement || 0)
+      };
+      const openAds = Math.max(0, totals.ads - resolvedCounts.affected);
+      const openCreatives = Math.max(0, totals.creatives - resolvedCounts.affected);
+      const openPolicy = Math.max(0, totals.policy - resolvedCounts.policy);
+      const openSpelling = Math.max(0, totals.spelling - resolvedCounts.spelling);
+      const openPlacement = Math.max(0, totals.placement - resolvedCounts.placement);
+
+      if (els.ads) els.ads.innerHTML = metricValue(openAds, `${openCreatives} creatives`);
+      if (els.policy) els.policy.innerHTML = metricFraction(openPolicy, totals.policy, "creatives");
+      if (els.spelling) els.spelling.innerHTML = metricFraction(openSpelling, totals.spelling, "creatives");
+      if (els.placement) els.placement.innerHTML = metricFraction(openPlacement, totals.placement, "ads");
+
+      setMetricNeutral(els.adsCard);
+      setMetricState(els.policyCard, openPolicy);
+      setMetricState(els.spellingCard, openSpelling);
+      setMetricState(els.placementCard, openPlacement);
+    }
+
+    async function loadIssueStates() {
+      const localStates = readLocalStates();
+      appState.resolved = new Map(Object.entries(localStates));
+      if (!appState.remoteStateEnabled) return;
+
+      try {
+        const response = await fetch(`/api/issue-states?reportId=${encodeURIComponent(appState.reportId)}`);
+        if (!response.ok) throw new Error(`Issue state API failed: ${response.status}`);
+        const data = await response.json();
+        for (const item of data.states || []) {
+          appState.resolved.set(item.issue_key, Boolean(item.resolved));
+        }
+        writeLocalStates(Object.fromEntries(appState.resolved));
+      } catch (error) {
+        console.warn(error);
+      }
+    }
+
+    function applyResolvedStates() {
+      document.querySelectorAll(".group").forEach((card) => {
+        const issueKey = card.dataset.issueKey;
+        setResolved(card, Boolean(appState.resolved.get(issueKey)), { persist: false });
+      });
+    }
+
+    function setResolved(card, resolved, options = {}) {
+      if (!card) return;
+      const issueKey = card.dataset.issueKey;
+      card.dataset.resolved = resolved ? "true" : "false";
+      card.classList.toggle("is-resolved", resolved);
+      const input = card.querySelector("[data-resolve-toggle]");
+      if (input) input.checked = resolved;
+      appState.resolved.set(issueKey, resolved);
+      applyFilters();
+      if (options.persist) persistResolvedState(issueKey, resolved);
+    }
+
+    async function persistResolvedState(issueKey, resolved) {
+      const localStates = readLocalStates();
+      localStates[issueKey] = resolved;
+      writeLocalStates(localStates);
+      if (!appState.remoteStateEnabled) return;
+
+      try {
+        const response = await fetch("/api/issue-states", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reportId: appState.reportId, issueKey, resolved })
+        });
+        if (!response.ok) throw new Error(`Issue state API failed: ${response.status}`);
+      } catch (error) {
+        console.warn(error);
+        els.notice.hidden = false;
+        els.notice.textContent = "Resolved state was saved locally, but Supabase sync failed.";
+      }
+    }
+
+    function readLocalStates() {
+      try {
+        return JSON.parse(localStorage.getItem(appState.storageKey) || "{}");
+      } catch {
+        return {};
+      }
+    }
+
+    function writeLocalStates(states) {
+      try {
+        localStorage.setItem(appState.storageKey, JSON.stringify(states));
+      } catch {
+        // Ignore storage failures; remote state still works in production.
+      }
+    }
+
+    function isFail(value) {
+      return String(value || "").includes("✕");
+    }
+
+    function metricValue(number, label) {
+      return `<span class="big-number">${escapeHtml(number)}</span>${escapeHtml(label)}`;
+    }
+
+    function formatStatusValue(label, value) {
+      const clean = String(value || "N/A").trim();
+      if (label === "Screenshot") return clean.includes("⚠") ? "⚠ Screenshot" : "– Screenshot";
+      if (clean === "N/A") return `– ${label}`;
+      if (!isFail(clean)) return `${label} ${clean}`;
+      if (label === "Placement") {
+        const count = clean.match(/\((\d+)\s*ads?\)/i)?.[1];
+        return `× Placement${count ? ` (${count})` : ""}`;
+      }
+      if (label === "Policy") return "× Policy";
+      if (label === "Spelling") return "× Spelling";
+      return `× ${label}`;
+    }
+
+    function getIssueCount(value, fallback = 1) {
+      const match = String(value || "").match(/\((\d+)\s*ads?\)/i);
+      return Number(match?.[1] || fallback);
+    }
+
+    async function copyText(value) {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+        return;
+      }
+      const textarea = document.createElement("textarea");
+      textarea.value = value;
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    }
+
+    function formatDate(iso) {
+      const date = new Date(iso);
+      if (Number.isNaN(date.getTime())) return iso || "";
+      return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Bangkok" }).format(date);
+    }
+
+    function createReportId(reportUrl, alert) {
+      const accountId = alert.meta?.accountId || alert.meta?.accountName || "account";
+      const generatedAt = alert.meta?.generatedAt || "";
+      return `${accountId}:${generatedAt}:${hashString(reportUrl)}`;
+    }
+
+    function createIssueKey(creativeName, adIds, index) {
+      return hashString(`${creativeName}|${adIds.join("|")}|${index}`);
+    }
+
+    function hashString(value) {
+      let hash = 5381;
+      const input = `${value || ""}`;
+      for (let index = 0; index < input.length; index += 1) {
+        hash = ((hash << 5) + hash) ^ input.charCodeAt(index);
+      }
+      return (hash >>> 0).toString(36);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replace(/'/g, "&#39;");
+    }
+</script>
+</body>
+</html>
