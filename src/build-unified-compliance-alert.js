@@ -936,6 +936,8 @@ function buildStructuredDetails(group) {
     issueFingerprint: group.issueFingerprint,
     issueType: group.issueType,
     resolution: group.resolution,
+    originalText: group.originalText || "",
+    revisedText: group.revisedText || "",
     policy: {
       hasAction: group.policy.hasAction,
       risk: group.policyRisk,

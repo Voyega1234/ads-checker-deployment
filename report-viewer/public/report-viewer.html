@@ -471,13 +471,13 @@
       border-top: 1px solid var(--line);
       border-radius: 0;
       background: #fff;
-      color: var(--muted);
+      color: #6FD1D7;
       cursor: pointer;
-      font-weight: 600;
       font: inherit;
       font-size: 12px;
+      font-weight: 750;
     }
-    .details-button:hover { background: rgba(8, 59, 236, .035); color: var(--accent); }
+    .details-button:hover { background: rgba(8, 59, 236, .035); color: #6FD1D7; }
     .screenshots-section { display: none; }
     .screenshots-section h2 {
       display: none;
@@ -690,6 +690,22 @@
       margin: 0 0 8px;
     }
     .detail-section-head h3 { margin: 0; }
+    .collapsible-text-card {
+      margin-bottom: 12px;
+    }
+    .collapsible-text-card summary {
+      cursor: pointer;
+      color: #083BEC;
+      font-weight: 750;
+      font-size: 13px;
+      list-style-position: inside;
+    }
+    .collapsible-text-card summary:hover {
+      color: #062fbd;
+    }
+    .collapsible-text-card pre {
+      margin-top: 8px;
+    }
     .copy-revised {
       width: 32px;
       height: 30px;
@@ -1289,6 +1305,7 @@
         status,
         placementIssues,
         revisedText,
+        originalText: details.originalText || "",
         screenshots,
         context,
         details,
@@ -1447,6 +1464,7 @@
           <section class="detail-panel">
             <p class="panel-label">Policy &amp; spellcheck</p>
             ${renderAffectedAdsCard(group)}
+            ${renderOriginalTextCard(group)}
             ${renderRevisedTextCard(group, true)}
             ${renderVerdictBar(group)}
             <div class="issue-stack">
@@ -1467,6 +1485,7 @@
         <section class="detail-panel">
           <p class="panel-label">Policy &amp; spellcheck</p>
           ${renderAffectedAdsCard(group)}
+          ${renderOriginalTextCard(group)}
           ${renderRevisedTextCard(group)}
           ${renderVerdictBar(group)}
           <div class="issue-stack">
@@ -1515,6 +1534,15 @@
         </div>
         <pre>${escapeHtml(revisedText)}</pre>
       </section>`;
+    }
+
+    function renderOriginalTextCard(group) {
+      const originalText = String(group.originalText || group.details?.originalText || "").trim();
+      if (!originalText) return "";
+      return `<details class="revised-card collapsible-text-card">
+        <summary>Original text</summary>
+        <pre>${escapeHtml(originalText)}</pre>
+      </details>`;
     }
 
     function renderDetailShot(item) {
