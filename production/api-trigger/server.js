@@ -110,6 +110,7 @@ function buildWorkerArgs(body) {
   const mode = normalizeMode(body.mode || "full");
   const args = ["--mode", mode];
   const account = normalizeAccount(body.accountId || body.account || "");
+  const accounts = normalizeAccountList(body.accountIds || body.accounts || []);
   const allAccounts = body.allAccounts === true;
 
   if (allAccounts) {
@@ -119,10 +120,12 @@ function buildWorkerArgs(body) {
       if (!Number.isInteger(delay) || delay < 0) throw httpError(400, "accountDelay must be a non-negative integer");
       args.push("--account-delay", String(delay));
     }
+  } else if (accounts.length) {
+    args.push("--accounts", accounts.join(","));
   } else if (account) {
     args.push("--account", account);
   } else {
-    throw httpError(400, "accountId or allAccounts=true is required");
+    throw httpError(400, "accountId, accountIds, or allAccounts=true is required");
   }
 
   const channel = normalizeSlackChannel(body.channel || config.defaultChannel);
@@ -147,6 +150,16 @@ function normalizeAccount(value) {
   const account = raw.startsWith("act_") ? raw : `act_${raw}`;
   if (!/^act_\d{6,32}$/.test(account)) throw httpError(400, `invalid accountId: ${value}`);
   return account;
+}
+
+function normalizeAccountList(value) {
+  const values = Array.isArray(value)
+    ? value
+    : String(value || "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+  return values.map(normalizeAccount);
 }
 
 function normalizeSlackChannel(value) {

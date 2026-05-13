@@ -35,6 +35,7 @@ DEFAULT_REPORT_VIEWER_URL = "https://report-viewer-theta.vercel.app/report-viewe
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run ad compliance production flow.")
     parser.add_argument("--account", help="Meta ad account id, with or without act_.")
+    parser.add_argument("--accounts", default="", help="Comma-separated Meta ad account ids.")
     parser.add_argument("--all-accounts", action="store_true", help="Run all active accounts from Supabase.")
     parser.add_argument("--account-delay", type=int, default=5, help="Seconds to wait between accounts (default: 5).")
     parser.add_argument(
@@ -63,8 +64,11 @@ def main() -> int:
     if args.all_accounts:
         return run_all_accounts(args)
 
+    if args.accounts:
+        return run_selected_accounts(args)
+
     if not args.account:
-        raise SystemExit("Missing --account or --all-accounts")
+        raise SystemExit("Missing --account, --accounts, or --all-accounts")
 
     return run_single_account(args.account, args)
 
@@ -78,7 +82,31 @@ def run_all_accounts(args: argparse.Namespace) -> int:
     if not accounts:
         print("No active accounts with Slack Channel ID in Client sheet.")
         return 0
+    return run_account_list(accounts, args)
 
+
+def run_selected_accounts(args: argparse.Namespace) -> int:
+    requested = [normalize_account(item) for item in str(args.accounts).split(",") if item.strip()]
+    if not requested:
+        raise SystemExit("Missing --accounts values")
+
+    active_accounts = load_active_accounts()
+    active_by_id = {str(acc.get("ad_account_act_id") or "").lower(): acc for acc in active_accounts}
+    missing = [account for account in requested if account.lower() not in active_by_id]
+    if missing:
+        raise SystemExit(
+            "Requested account(s) are not Active in meta_adaccounts: " + ", ".join(missing)
+        )
+
+    accounts = [active_by_id[account.lower()] for account in requested]
+    accounts = filter_accounts_with_sheet_slack(accounts)
+    if not accounts:
+        print("No selected active accounts with Slack Channel ID in Client sheet.")
+        return 0
+    return run_account_list(accounts, args)
+
+
+def run_account_list(accounts: list[dict], args: argparse.Namespace) -> int:
     print(f"\nRunning {len(accounts)} active accounts\n{'─' * 50}")
     errors: list[tuple[str, str]] = []
 
