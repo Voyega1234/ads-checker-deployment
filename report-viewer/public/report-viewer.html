@@ -471,13 +471,13 @@
       border-top: 1px solid var(--line);
       border-radius: 0;
       background: #fff;
-      color: #6FD1D7;
+      color: #5E7BDB;
       cursor: pointer;
       font: inherit;
       font-size: 12px;
       font-weight: 750;
     }
-    .details-button:hover { background: rgba(8, 59, 236, .035); color: #6FD1D7; }
+    .details-button:hover { background: rgba(8, 59, 236, .035); color: #5E7BDB; }
     .screenshots-section { display: none; }
     .screenshots-section h2 {
       display: none;
@@ -695,13 +695,29 @@
     }
     .collapsible-text-card summary {
       cursor: pointer;
-      color: #083BEC;
-      font-weight: 750;
-      font-size: 13px;
-      list-style-position: inside;
+      list-style: none;
     }
-    .collapsible-text-card summary:hover {
-      color: #062fbd;
+    .collapsible-text-card summary::-webkit-details-marker {
+      display: none;
+    }
+    .collapsible-text-card summary .detail-section-head {
+      margin-bottom: 0;
+    }
+    .collapsible-text-card[open] summary .detail-section-head {
+      margin-bottom: 8px;
+    }
+    .expand-indicator {
+      color: var(--muted-soft);
+      font-size: 14px;
+      line-height: 1;
+      transform: rotate(0deg);
+      transition: transform .16s ease, color .16s ease;
+    }
+    .collapsible-text-card summary:hover .expand-indicator {
+      color: var(--muted);
+    }
+    .collapsible-text-card[open] .expand-indicator {
+      transform: rotate(90deg);
     }
     .collapsible-text-card pre {
       margin-top: 8px;
@@ -1540,7 +1556,12 @@
       const originalText = String(group.originalText || group.details?.originalText || "").trim();
       if (!originalText) return "";
       return `<details class="revised-card collapsible-text-card">
-        <summary>Original text</summary>
+        <summary>
+          <div class="detail-section-head">
+            <h3>Original text</h3>
+            <span class="expand-indicator" aria-hidden="true">›</span>
+          </div>
+        </summary>
         <pre>${escapeHtml(originalText)}</pre>
       </details>`;
     }

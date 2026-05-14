@@ -725,9 +725,13 @@ def get_revised_caption_from_analysis(analysis: Dict[str, Any]) -> str:
 # GEMINI API
 # ============================================================
 
-def build_gemini_payload(parts: List[Dict[str, Any]]) -> Dict[str, Any]:
-    return {
-        "contents": [{"parts": parts}],
+def build_gemini_payload(
+    parts: List[Dict[str, Any]],
+    *,
+    system_instruction: str | None = None,
+) -> Dict[str, Any]:
+    payload = {
+        "contents": [{"role": "user", "parts": parts}],
         "generationConfig": {
             "temperature": GEMINI_TEMPERATURE,
             "maxOutputTokens": MAX_OUTPUT_TOKENS,
@@ -735,6 +739,9 @@ def build_gemini_payload(parts: List[Dict[str, Any]]) -> Dict[str, Any]:
             "responseSchema": build_fda_response_schema_caption_only(),
         },
     }
+    if system_instruction:
+        payload["systemInstruction"] = {"parts": [{"text": system_instruction}]}
+    return payload
 
 
 def call_gemini_with_retry(payload: Dict[str, Any], *, api_key: str, label: str = "") -> Dict[str, Any]:
@@ -844,14 +851,16 @@ def run_caption_only_check(
         raw_prompt,
         rules_block=rules_block,
         quick_reference_block=quick_reference_block,
-        message=caption,
+        message=caption if prompt_has_inline_message else "",
     )
 
-    parts = [{"text": "\n".join([prompt_text, "", build_task_instruction_caption_only()])}]
-    if not prompt_has_inline_message:
-        parts.append({"text": f"[CAPTION]\n{caption or ''}"})
-
-    payload = build_gemini_payload(parts)
+    if prompt_has_inline_message:
+        parts = [{"text": "\n".join([prompt_text, "", build_task_instruction_caption_only()])}]
+        payload = build_gemini_payload(parts)
+    else:
+        system_instruction = "\n".join([prompt_text, "", build_task_instruction_caption_only()])
+        parts = [{"text": f"=== INPUT_MESSAGE START ===\n{caption or ''}\n=== INPUT_MESSAGE END ==="}]
+        payload = build_gemini_payload(parts, system_instruction=system_instruction)
     run = call_gemini_with_retry(payload, api_key=api_key, label=label)
 
     if not run.get("ok"):
