@@ -36,7 +36,34 @@ OUTPUT_DIR = PROJECT_ROOT / os.environ.get("OUTPUT_DIR", "output")
 DEFAULT_REPORT_VIEWER_URL = "https://report-viewer-theta.vercel.app/report-viewer"
 
 
+def load_project_env() -> None:
+    env_path = PROJECT_ROOT / ".env"
+    if not env_path.exists():
+        return
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+    alias_env("SUPABASE_URL", "VITE_SUPABASE_URL")
+    alias_env("SUPABASE_SERVICE_KEY", "VITE_SUPABASE_SERVICE_KEY")
+    alias_env("SLACK_BOT_TOKEN", "SLACK_BOT_OAUTH")
+
+
+def alias_env(target: str, source: str) -> None:
+    if os.environ.get(target):
+        return
+    value = os.environ.get(source)
+    if value:
+        os.environ[target] = value
+
+
 def main() -> int:
+    load_project_env()
     parser = argparse.ArgumentParser(description="Run ad compliance production flow.")
     parser.add_argument("--account", help="Meta ad account id, with or without act_.")
     parser.add_argument("--accounts", default="", help="Comma-separated Meta ad account ids.")
