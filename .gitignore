@@ -1,6 +1,7 @@
 node_modules/
 .env
 output/
+v2.0_run-all-ad-acc/temp/
 *.log
 .DS_Store
 .vercel

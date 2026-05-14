@@ -134,6 +134,29 @@ function buildWorkerArgs(body) {
   const viewerUrl = String(body.viewerUrl || config.defaultViewerUrl || "").trim();
   if (viewerUrl) args.push("--viewer-url", viewerUrl);
 
+  const policyRunner = String(body.policyRunner || body.policy_runner || "").trim().toLowerCase();
+  if (policyRunner) {
+    if (!["legacy", "batch"].includes(policyRunner)) throw httpError(400, `invalid policyRunner: ${policyRunner}`);
+    args.push("--policy-runner", policyRunner);
+  }
+  if (body.batchPolicyPollInterval !== undefined || body.batchPollInterval !== undefined) {
+    const pollInterval = Number(body.batchPolicyPollInterval ?? body.batchPollInterval);
+    if (!Number.isInteger(pollInterval) || pollInterval <= 0) {
+      throw httpError(400, "batchPolicyPollInterval must be a positive integer");
+    }
+    args.push("--batch-poll-interval", String(pollInterval));
+  }
+  if (body.batchPolicyTimeout !== undefined || body.batchTimeout !== undefined) {
+    const timeout = Number(body.batchPolicyTimeout ?? body.batchTimeout);
+    if (!Number.isInteger(timeout) || timeout <= 0) {
+      throw httpError(400, "batchPolicyTimeout must be a positive integer");
+    }
+    args.push("--batch-timeout", String(timeout));
+  }
+  if (body.batchForceRecheck === true || body.batchPolicyForceRecheck === true) {
+    args.push("--batch-force-recheck");
+  }
+
   if (body.skipSlack === true) args.push("--skip-slack");
   return args;
 }

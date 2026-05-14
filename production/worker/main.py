@@ -49,6 +49,29 @@ def main() -> int:
     parser.add_argument("--placement-report", default="")
     parser.add_argument("--unified-report", default="")
     parser.add_argument("--skip-slack", action="store_true")
+    parser.add_argument(
+        "--policy-runner",
+        choices=["legacy", "batch"],
+        default=os.environ.get("POLICY_RUNNER", "legacy"),
+        help="Policy assessment runner. legacy keeps current realtime worker; batch uses Gemini Batch API.",
+    )
+    parser.add_argument(
+        "--batch-poll-interval",
+        type=int,
+        default=int(os.environ.get("BATCH_POLICY_POLL_INTERVAL", "60")),
+        help="Seconds between Gemini Batch API status polls when --policy-runner batch is used.",
+    )
+    parser.add_argument(
+        "--batch-timeout",
+        type=int,
+        default=int(os.environ.get("BATCH_POLICY_TIMEOUT", "7200")),
+        help="Max seconds to wait for Gemini Batch API completion.",
+    )
+    parser.add_argument(
+        "--batch-force-recheck",
+        action="store_true",
+        help="Force policy batch requests even if reusable DB results already exist.",
+    )
     parser.add_argument("--check-slack-routing", action="store_true", help="Print Slack routing and exit.")
     parser.add_argument("--require-env", action="store_true")
     parser.add_argument("--require-slack", action="store_true")
@@ -163,7 +186,19 @@ def run_single_account(account_raw: str, args: argparse.Namespace) -> int:
     )
 
     if args.mode in {"policy", "full"}:
-        run_policy(account, channel=slack_route.channel_id if slack_route else args.channel)
+        if args.policy_runner == "batch":
+            client_id = (slack_route.client_id if slack_route else "").strip()
+            if not client_id:
+                raise SystemExit(f"Cannot run batch policy without a meta_adaccounts Client for {account}")
+            run_policy_batch(
+                account,
+                client_id=client_id,
+                poll_interval=args.batch_poll_interval,
+                timeout=args.batch_timeout,
+                force_recheck=args.batch_force_recheck,
+            )
+        else:
+            run_policy(account, channel=slack_route.channel_id if slack_route else args.channel)
 
     if args.mode in {"placement", "full"}:
         run_placement(account, account_output_dir)
@@ -303,6 +338,33 @@ def run_policy(account: str, channel: str = "") -> None:
     if channel:
         env["SLACK_OVERRIDE_CHANNEL_ID"] = channel
     run_command([str(_policy_python()), "worker.py", "--once", account], cwd=POLICY_DIR, env=env)
+
+
+def run_policy_batch(
+    account: str,
+    *,
+    client_id: str,
+    poll_interval: int,
+    timeout: int,
+    force_recheck: bool,
+) -> None:
+    command = [
+        str(_policy_python()),
+        "batch_policy.py",
+        "submit",
+        "--client-id",
+        client_id,
+        "--account",
+        account,
+        "--wait",
+        "--poll-interval",
+        str(max(1, int(poll_interval))),
+        "--timeout",
+        str(max(1, int(timeout))),
+    ]
+    if force_recheck:
+        command.append("--force-recheck")
+    run_command(command, cwd=POLICY_DIR)
 
 
 def run_placement(account: str, account_output_dir: Path) -> None:
