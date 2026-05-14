@@ -265,13 +265,14 @@ async function runLocalWorker(args) {
   const err = fs.openSync(logPath, "a");
   const child = spawn(
     config.pythonBin,
-    ["production/worker/main.py", ...args],
+    ["-u", "production/worker/main.py", ...args],
     {
       cwd: PROJECT_ROOT,
       detached: true,
       stdio: ["ignore", out, err],
       env: {
         ...process.env,
+        PYTHONUNBUFFERED: "1",
         REPORT_VIEWER_URL: config.defaultViewerUrl
       }
     }
