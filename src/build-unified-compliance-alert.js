@@ -12,6 +12,8 @@ async function main() {
   const reportPath = args.report || DEFAULT_REPORT_PATH;
   const outPath = args.out || path.resolve("output/unified-alert-preview.json");
   const accountId = normalizeActId(args.account || inferAccountIdFromReportPath(reportPath));
+  const source = `${args.source || ""}`.trim();
+  const newAdIds = parseCsv(args["new-ad-ids"] || args.newAdIds || "");
 
   const placementReport = await readJson(reportPath);
   const placementResults = placementReport.results || [];
@@ -27,7 +29,9 @@ async function main() {
     generatedAt: placementReport.generatedAt || new Date().toISOString(),
     placementResults,
     policyRows,
-    metaAdByAdId
+    metaAdByAdId,
+    source,
+    newAdIds
   });
 
   await fs.mkdir(path.dirname(outPath), { recursive: true });
@@ -72,6 +76,15 @@ function parseArgs(argv) {
     i += 1;
   }
   return args;
+}
+
+function parseCsv(value) {
+  return unique(
+    `${value || ""}`
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+  );
 }
 
 async function readJson(filePath) {
@@ -201,12 +214,21 @@ function parsePositiveInt(value, fallback) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
-async function buildUnifiedAlert({ account, generatedAt, placementResults, policyRows, metaAdByAdId }) {
+async function buildUnifiedAlert({
+  account,
+  generatedAt,
+  placementResults,
+  policyRows,
+  metaAdByAdId,
+  source = "",
+  newAdIds = []
+}) {
   const placementByAdId = buildPlacementByAdId(placementResults);
   const adMetaByAdId = buildAdMetaByAdId(placementResults, metaAdByAdId);
   const policyByAdId = buildPolicyByAdId(policyRows);
   const allAdIds = unique([...policyByAdId.keys(), ...placementByAdId.keys()]);
-  const groups = groupByCreative(allAdIds, policyByAdId, placementByAdId, adMetaByAdId);
+  const newAdIdSet = new Set((newAdIds || []).map((id) => `${id}`.trim()).filter(Boolean));
+  const groups = groupByCreative(allAdIds, policyByAdId, placementByAdId, adMetaByAdId, newAdIdSet);
   applyIssueFingerprints(groups, account.id);
   await applyResolvedIssueFingerprints(groups);
   const actionableGroups = groups.filter(
@@ -256,7 +278,10 @@ async function buildUnifiedAlert({ account, generatedAt, placementResults, polic
       placementAdCount,
       placementCreativeCount,
       threadCount: openGroups.length,
-      resolvedIssueGroupCount: actionableGroups.length - openGroups.length
+      resolvedIssueGroupCount: actionableGroups.length - openGroups.length,
+      source,
+      newAdIds: [...newAdIdSet],
+      newAdCount: unique(openGroups.flatMap((group) => group.newAdIds || [])).length
     },
     mainMessage: {
       text: `Ad Compliance Alert: ${clientName} ${account.id}`,
@@ -423,7 +448,7 @@ function extractPolicyFlags(normalized) {
   return unique([...(matches.red || []), ...(matches.yellow || [])].filter(Boolean));
 }
 
-function groupByCreative(adIds, policyByAdId, placementByAdId, adMetaByAdId) {
+function groupByCreative(adIds, policyByAdId, placementByAdId, adMetaByAdId, newAdIdSet = new Set()) {
   const groups = new Map();
   for (const adId of adIds) {
     const policy = policyByAdId.get(adId);
@@ -448,6 +473,10 @@ function groupByCreative(adIds, policyByAdId, placementByAdId, adMetaByAdId) {
       });
 
     group.adIds = unique([...group.adIds, adId]);
+    if (newAdIdSet.has(adId)) {
+      group.newAdIds = unique([...group.newAdIds, adId]);
+      group.isNew = true;
+    }
     group.creativeNames = unique([...group.creativeNames, name].filter(Boolean));
     group.creativeIds = unique([...group.creativeIds, creativeId].filter(Boolean));
     if (policy) {
@@ -604,6 +633,8 @@ function newEmptyGroup({ key, creativeName, creativeId, representativeAdId }) {
     policy: { hasAction: false, risks: [] },
     spelling: { hasAction: false, errors: [] },
     placement: { hasAction: false, results: [], formats: [] },
+    isNew: false,
+    newAdIds: [],
     originalText: "",
     revisedText: "",
     imageResult: null,
@@ -703,9 +734,10 @@ function buildMainBlocks({
 }
 
 function buildThreadText(group) {
+  const newLabel = group.isNew ? " · New" : "";
   const revisedText = group.revisedText || group.originalText || "N/A";
   const lines = [
-    `*${escapeMrkdwn(group.creativeName)}* · ${group.adIds.length} ad${group.adIds.length === 1 ? "" : "s"}`,
+    `*${escapeMrkdwn(group.creativeName)}* · ${group.adIds.length} ad${group.adIds.length === 1 ? "" : "s"}${newLabel}`,
     formatAdIds(group.adIds),
     "",
     buildStatusText(group),
@@ -720,12 +752,13 @@ function buildThreadText(group) {
 }
 
 function buildThreadBlocks(group) {
+  const newLabel = group.isNew ? " · *New*" : "";
   const blocks = [
     {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*${escapeMrkdwn(group.creativeName)}* · ${group.adIds.length} ad${group.adIds.length === 1 ? "" : "s"}\n${formatAdIds(group.adIds)}`
+        text: `*${escapeMrkdwn(group.creativeName)}* · ${group.adIds.length} ad${group.adIds.length === 1 ? "" : "s"}${newLabel}\n${formatAdIds(group.adIds)}`
       }
     },
     {
@@ -936,6 +969,8 @@ function buildStructuredDetails(group) {
     issueFingerprint: group.issueFingerprint,
     issueType: group.issueType,
     resolution: group.resolution,
+    isNew: Boolean(group.isNew),
+    newAdIds: group.newAdIds || [],
     originalText: group.originalText || "",
     revisedText: group.revisedText || "",
     policy: {

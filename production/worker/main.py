@@ -21,6 +21,10 @@ import os
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 from slack_routing import resolve_slack_route, resolve_slack_routes
@@ -71,6 +75,14 @@ def main() -> int:
         "--batch-force-recheck",
         action="store_true",
         help="Force policy batch requests even if reusable DB results already exist.",
+    )
+    parser.add_argument("--source", default="", help="Run source label, e.g. webhook.")
+    parser.add_argument("--new-ad-ids", default="", help="Comma-separated ad IDs that triggered this run.")
+    parser.add_argument("--event-ids", default="", help="Comma-separated meta_ad_status_events IDs to mark processed.")
+    parser.add_argument(
+        "--mark-events-processed",
+        action="store_true",
+        help="Mark matching meta_ad_status_events rows processed after a successful run.",
     )
     parser.add_argument("--check-slack-routing", action="store_true", help="Print Slack routing and exit.")
     parser.add_argument("--require-env", action="store_true")
@@ -164,6 +176,8 @@ def run_account_list(accounts: list[dict], args: argparse.Namespace) -> int:
 def run_single_account(account_raw: str, args: argparse.Namespace) -> int:
     account = normalize_account(account_raw)
     account_num = account.replace("act_", "")
+    new_ad_ids = parse_csv_values(args.new_ad_ids)
+    event_ids = parse_csv_values(args.event_ids)
     slack_route = None
     if args.mode in {"policy", "slack", "full"}:
         slack_route = resolve_slack_route(
@@ -204,7 +218,13 @@ def run_single_account(account_raw: str, args: argparse.Namespace) -> int:
         run_placement(account, account_output_dir)
 
     if args.mode in {"unified", "full"}:
-        run_unified(account, placement_report, unified_report)
+        run_unified(
+            account,
+            placement_report,
+            unified_report,
+            source=args.source,
+            new_ad_ids=new_ad_ids,
+        )
 
     if args.mode == "slack" or (args.mode == "full" and not args.skip_slack):
         if slack_route.channel_id:
@@ -212,6 +232,14 @@ def run_single_account(account_raw: str, args: argparse.Namespace) -> int:
             run_slack(unified_report, slack_route.channel_id, args.viewer_url)
         else:
             print("  Skipping Slack (no Client sheet Slack Channel ID, --channel, or SLACK_OVERRIDE_CHANNEL_ID set)")
+
+    if args.mark_events_processed:
+        mark_status_events_processed(
+            account_num,
+            new_ad_ids=new_ad_ids,
+            event_ids=event_ids,
+            source=args.source,
+        )
 
     print(
         f"done mode={args.mode} account={account} "
@@ -378,21 +406,108 @@ def run_placement(account: str, account_output_dir: Path) -> None:
     run_command(["node", "src/index.js", "--json"], cwd=PROJECT_ROOT, env=env)
 
 
-def run_unified(account: str, placement_report: Path, unified_report: Path) -> None:
+def run_unified(
+    account: str,
+    placement_report: Path,
+    unified_report: Path,
+    *,
+    source: str = "",
+    new_ad_ids: list[str] | None = None,
+) -> None:
     assert_placement_report_account(placement_report, account)
-    run_command(
-        [
-            "node",
-            "src/build-unified-compliance-alert.js",
-            "--report",
-            str(placement_report),
-            "--account",
-            account,
-            "--out",
-            str(unified_report),
-        ],
-        cwd=PROJECT_ROOT,
+    command = [
+        "node",
+        "src/build-unified-compliance-alert.js",
+        "--report",
+        str(placement_report),
+        "--account",
+        account,
+        "--out",
+        str(unified_report),
+    ]
+    if source:
+        command.extend(["--source", source])
+    if new_ad_ids:
+        command.extend(["--new-ad-ids", ",".join(new_ad_ids)])
+    run_command(command, cwd=PROJECT_ROOT)
+
+
+def parse_csv_values(value: str) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in str(value or "").split(","):
+        clean = item.strip()
+        if clean and clean not in seen:
+            seen.add(clean)
+            out.append(clean)
+    return out
+
+
+def mark_status_events_processed(
+    account_num: str,
+    *,
+    new_ad_ids: list[str],
+    event_ids: list[str],
+    source: str,
+) -> None:
+    if not event_ids and not new_ad_ids:
+        print("  Skipping meta_ad_status_events processed marker (no event IDs or new ad IDs).")
+        return
+    supabase_url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    supabase_key = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_KEY") or ""
+    if not supabase_url or not supabase_key:
+        print("  Skipping meta_ad_status_events processed marker (missing Supabase env).")
+        return
+
+    query = urllib.parse.urlencode(
+        {
+            "ad_account_id": f"eq.{account_num}",
+            "processed_at": "is.null",
+        }
     )
+    if event_ids:
+        quoted = ",".join(event_ids)
+        query += "&" + urllib.parse.urlencode({"id": f"in.({quoted})"})
+    elif new_ad_ids:
+        quoted = ",".join(new_ad_ids)
+        query += "&" + urllib.parse.urlencode({"ad_object_id": f"in.({quoted})"})
+
+    url = f"{supabase_url}/rest/v1/meta_ad_status_events?{query}"
+    payload = {
+        "processed_at": datetime.now(timezone.utc).isoformat(),
+        "process_error": None,
+    }
+
+    try:
+        rows = patch_supabase_rows(url, supabase_key, payload)
+        print(f"  Marked meta_ad_status_events processed rows={len(rows)}")
+    except Exception as exc:
+        if "process_error" in str(exc):
+            try:
+                rows = patch_supabase_rows(url, supabase_key, {"processed_at": payload["processed_at"]})
+                print(f"  Marked meta_ad_status_events processed rows={len(rows)}")
+                return
+            except Exception as retry_exc:
+                exc = retry_exc
+        print(f"  WARNING: Could not mark meta_ad_status_events processed: {exc}")
+
+
+def patch_supabase_rows(url: str, supabase_key: str, payload: dict) -> list:
+    data = json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(
+        url,
+        data=data,
+        method="PATCH",
+        headers={
+            "apikey": supabase_key,
+            "Authorization": f"Bearer {supabase_key}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        body = response.read().decode("utf-8")
+        return json.loads(body or "[]")
 
 
 def assert_placement_report_account(placement_report: Path, account: str) -> None:
