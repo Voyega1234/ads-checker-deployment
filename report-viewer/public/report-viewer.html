@@ -327,6 +327,27 @@
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
+    .title-badges {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .new-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: #eaf8ff;
+      border: 1px solid rgba(0, 179, 255, .28);
+      color: #0077b6;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
     .used-line {
       margin: 5px 0 0;
       color: var(--muted);
@@ -1313,6 +1334,7 @@
       const context = blocks.find((block) => block.type === "context")?.elements?.[0]?.text || "";
       const key = message.key || createIssueKey(creativeName, adIds, index);
       const details = message.details || {};
+      const isNew = Boolean(details.isNew) || /\bNew\b/i.test(titleLine);
       return {
         key,
         creativeName,
@@ -1322,6 +1344,8 @@
         placementIssues,
         revisedText,
         originalText: details.originalText || "",
+        isNew,
+        newAdIds: Array.isArray(details.newAdIds) ? details.newAdIds : [],
         screenshots,
         context,
         details,
@@ -1431,6 +1455,7 @@
           <div class="group-title-row">
             <div>
               <p class="creative">${escapeHtml(group.creativeName)}</p>
+              ${group.isNew ? `<div class="title-badges"><span class="new-badge">New</span></div>` : ""}
               <p class="used-line">Used in ${escapeHtml(formatAdCount(usedInAds))}</p>
             </div>
             <label class="resolved-toggle"><input type="checkbox" data-resolve-toggle>Resolved</label>

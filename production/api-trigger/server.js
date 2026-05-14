@@ -157,6 +157,18 @@ function buildWorkerArgs(body) {
     args.push("--batch-force-recheck");
   }
 
+  const source = String(body.source || "").trim();
+  if (source) args.push("--source", source);
+
+  const newAdIds = normalizeIdList(body.newAdIds || body.new_ad_ids || []);
+  if (newAdIds.length) args.push("--new-ad-ids", newAdIds.join(","));
+
+  const eventIds = normalizeUuidList(body.eventIds || body.event_ids || []);
+  if (eventIds.length) args.push("--event-ids", eventIds.join(","));
+  if (body.markEventsProcessed === true || body.mark_events_processed === true) {
+    args.push("--mark-events-processed");
+  }
+
   if (body.skipSlack === true) args.push("--skip-slack");
   return args;
 }
@@ -183,6 +195,26 @@ function normalizeAccountList(value) {
         .map((item) => item.trim())
         .filter(Boolean);
   return values.map(normalizeAccount);
+}
+
+function normalizeIdList(value) {
+  const values = Array.isArray(value)
+    ? value
+    : String(value || "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+  return [...new Set(values.map((item) => String(item || "").trim()).filter(Boolean))];
+}
+
+function normalizeUuidList(value) {
+  const values = normalizeIdList(value);
+  for (const id of values) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+      throw httpError(400, `invalid eventId: ${id}`);
+    }
+  }
+  return values;
 }
 
 function normalizeSlackChannel(value) {
