@@ -127,7 +127,7 @@ def get_ads(access_token: str | None = None, account_id: str = "", limit: int = 
 # Nested creative fields for single-call fetch (docs/meta_ads_api_1_call_per_adaccount.txt)
 _ADS_WITH_CREATIVES_FIELDS = (
     "id,name,created_time,updated_time,effective_status,"
-    "creative{id,name,body}"
+    "creative{id,name,body,object_story_spec,asset_feed_spec}"
 )
 
 
@@ -138,7 +138,7 @@ def get_active_ads_with_creatives(
     page_limit: int = 500,
 ) -> list[dict]:
     """
-    Active ads with nested creative (id, name, body) in one paginated flow per ad account.
+    Active ads with nested creative text fields in one paginated flow per ad account.
     GET /v23.0/act_{id}/ads?fields=...&effective_status=['ACTIVE']&limit=...
     """
     token = access_token or _token()
@@ -174,11 +174,11 @@ def get_active_ads_with_creatives(
 
 def get_creative(access_token: str | None = None, creative_id: str = "") -> dict:
     """
-    Get ad creative detail (id, name, body — aligned with get_active_ads_with_creatives nested fields).
-    GET /v23.0/{creative_id}?fields=id,name,body
+    Get ad creative detail aligned with get_active_ads_with_creatives nested fields.
+    GET /v23.0/{creative_id}?fields=id,name,body,object_story_spec,asset_feed_spec
     """
     token = access_token or _token()
-    return _get(token, creative_id, {"fields": "id,name,body"})
+    return _get(token, creative_id, {"fields": "id,name,body,object_story_spec,asset_feed_spec"})
 
 
 # --- 4: Video permalink and preferred thumbnail ---

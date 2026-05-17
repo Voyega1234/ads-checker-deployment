@@ -39,6 +39,9 @@ MAX_REPAIR_ROUNDS = int(os.getenv("MAX_REPAIR_ROUNDS", "3"))
 GEMINI_TEMPERATURE = float(os.getenv("GEMINI_TEMPERATURE", "0.5"))
 MAX_OUTPUT_TOKENS = int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "10000"))
 RULES_BLOCK_MAX_RULES = int(os.getenv("RULES_BLOCK_MAX_RULES", "1000"))
+POLICY_RULE_RETRIEVAL = os.getenv("POLICY_RULE_RETRIEVAL", "embedding").strip().lower()
+POLICY_RULE_EMBEDDING_MATCH_COUNT = int(os.getenv("POLICY_RULE_EMBEDDING_MATCH_COUNT", "100"))
+POLICY_RULE_EMBEDDING_VECTOR_CANDIDATES = int(os.getenv("POLICY_RULE_EMBEDDING_VECTOR_CANDIDATES", "150"))
 REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "120"))
 
 GEMINI_RETRY_DELAYS_SECONDS = [0.8, 1.5, 2.5, 4.0, 6.0]
@@ -83,7 +86,11 @@ def get_required_env(name: str) -> str:
 
 
 def get_supabase_key() -> str:
-    value = os.getenv("SUPABASE_SERVICE_KEY", "").strip() or os.getenv("SUPABASE_KEY", "").strip()
+    value = (
+        os.getenv("SUPABASE_SERVICE_KEY", "").strip()
+        or os.getenv("VITE_SUPABASE_SERVICE_KEY", "").strip()
+        or os.getenv("SUPABASE_KEY", "").strip()
+    )
     if not value:
         raise RuntimeError("Missing required env var: SUPABASE_SERVICE_KEY or SUPABASE_KEY")
     return value
@@ -263,8 +270,8 @@ def normalize_rule_for_prompt(row: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(tags, list):
         tags = []
 
-    return {
-        "rule_id": row.get("id") or "",
+    prompt_rule = {
+        "rule_id": row.get("id") or row.get("rule_id") or "",
         "policy_type": row.get("policy_type") or "",
         "source_type": row.get("policy_type") or "",
         "rule_status": row.get("rule_status") or "",
@@ -285,6 +292,34 @@ def normalize_rule_for_prompt(row: Dict[str, Any]) -> Dict[str, Any]:
         "quote_text": row.get("quote_text_th") or row.get("quote_text") or row.get("quote_text_en") or "",
         "tags": tags,
     }
+    return strip_empty_prompt_rule_fields(prompt_rule)
+
+
+def strip_empty_prompt_rule_fields(value: Any) -> Any:
+    if isinstance(value, dict):
+        out = {}
+        for key, item in value.items():
+            if key in {
+                "retrieval",
+                "match_source",
+                "similarity",
+                "combined_rank_score",
+                "rank",
+                "embedding_model",
+            }:
+                continue
+            cleaned = strip_empty_prompt_rule_fields(item)
+            if cleaned in ("", None, [], {}):
+                continue
+            out[key] = cleaned
+        return out
+    if isinstance(value, list):
+        return [
+            cleaned
+            for item in value
+            if (cleaned := strip_empty_prompt_rule_fields(item)) not in ("", None, [], {})
+        ]
+    return value
 
 
 def build_rules_block(rows: List[Dict[str, Any]], *, max_rules: int = 500, required_tags: Optional[List[str]] = None) -> str:
@@ -302,6 +337,54 @@ def build_rules_block(rows: List[Dict[str, Any]], *, max_rules: int = 500, requi
             break
 
     return json.dumps(out, ensure_ascii=False, indent=2)
+
+
+def get_policy_rules_for_caption(
+    caption: str,
+    *,
+    supabase_url: str,
+    supabase_key: str,
+) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    retrieval_mode = (os.getenv("POLICY_RULE_RETRIEVAL") or POLICY_RULE_RETRIEVAL or "all").strip().lower()
+    if retrieval_mode in {"embedding", "hybrid", "vector"}:
+        try:
+            import embed_policy_rules_gemini
+
+            rows = embed_policy_rules_gemini.search_policy_rules_for_prompt(
+                caption,
+                final_match_count=POLICY_RULE_EMBEDDING_MATCH_COUNT,
+                vector_candidate_count=POLICY_RULE_EMBEDDING_VECTOR_CANDIDATES,
+            )
+            return rows, {
+                "retrieval": "embedding",
+                "retrieved_rules": len(rows),
+                "final_match_count": POLICY_RULE_EMBEDDING_MATCH_COUNT,
+                "vector_candidate_count": POLICY_RULE_EMBEDDING_VECTOR_CANDIDATES,
+                "top_similarity": rows[0].get("similarity") if rows else None,
+                "top_match_source": rows[0].get("match_source") if rows else "",
+            }
+        except Exception as exc:
+            logger.exception("Embedding policy retrieval failed; falling back to all rules: %s", exc)
+            thai_law_rows = fetch_policy_rules("thai_law", supabase_url=supabase_url, supabase_key=supabase_key)
+            meta_policy_rows = fetch_policy_rules("meta_policy", supabase_url=supabase_url, supabase_key=supabase_key)
+            rows = thai_law_rows + meta_policy_rows
+            return rows, {
+                "retrieval": "all_fallback_after_embedding_error",
+                "retrieval_error": str(exc),
+                "thai_law_rules": len(thai_law_rows),
+                "meta_policy_rules": len(meta_policy_rows),
+                "retrieved_rules": len(rows),
+            }
+
+    thai_law_rows = fetch_policy_rules("thai_law", supabase_url=supabase_url, supabase_key=supabase_key)
+    meta_policy_rows = fetch_policy_rules("meta_policy", supabase_url=supabase_url, supabase_key=supabase_key)
+    rows = thai_law_rows + meta_policy_rows
+    return rows, {
+        "retrieval": "all",
+        "thai_law_rules": len(thai_law_rows),
+        "meta_policy_rules": len(meta_policy_rows),
+        "retrieved_rules": len(rows),
+    }
 
 
 # ============================================================
@@ -1099,6 +1182,7 @@ def build_final_output(
     initial_result: Dict[str, Any],
     initial_analysis: Dict[str, Any],
     verification: Optional[Dict[str, Any]],
+    retrieval_meta: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     output = deepcopy(initial_result) if isinstance(initial_result, dict) else {}
     if "caption_analysis" not in output or not isinstance(output.get("caption_analysis"), dict):
@@ -1143,6 +1227,8 @@ def build_final_output(
         "rules_block_max_rules": RULES_BLOCK_MAX_RULES,
         "output_file": str(OUTPUT_JSON_PATH.name),
     }
+    if retrieval_meta:
+        output["runtime_meta"]["policy_rule_retrieval"] = retrieval_meta
 
     return output
 
@@ -1169,14 +1255,15 @@ def run_policy_caption_check(
     raw_prompt = read_prompt_template()
 
     logger.info("=== Standalone JSON-only caption checker START ===")
-    thai_law_rows = fetch_policy_rules("thai_law", supabase_url=supabase_url, supabase_key=supabase_key)
-    meta_policy_rows = fetch_policy_rules("meta_policy", supabase_url=supabase_url, supabase_key=supabase_key)
-    all_policy_rows = thai_law_rows + meta_policy_rows
+    all_policy_rows, retrieval_meta = get_policy_rules_for_caption(
+        caption,
+        supabase_url=supabase_url,
+        supabase_key=supabase_key,
+    )
     rules_block = build_rules_block(all_policy_rows, max_rules=RULES_BLOCK_MAX_RULES)
     quick_reference_block = build_quick_reference_block()
 
-    logger.info("thai_law rules=%s", len(thai_law_rows))
-    logger.info("meta_policy rules=%s", len(meta_policy_rows))
+    logger.info("policy_rule_retrieval=%s", retrieval_meta)
     logger.info("all rules=%s", len(all_policy_rows))
     logger.info("rules_block chars=%s", len(rules_block))
     logger.info("quick_reference_block chars=%s", len(quick_reference_block))
@@ -1219,6 +1306,7 @@ def run_policy_caption_check(
             initial_result=initial_result,
             initial_analysis=initial_analysis,
             verification=None,
+            retrieval_meta=retrieval_meta,
         )
     else:
         logger.info("Initial caption result: fail. Starting revised caption verification/repair.")
@@ -1236,6 +1324,7 @@ def run_policy_caption_check(
             initial_result=initial_result,
             initial_analysis=initial_analysis,
             verification=verification,
+            retrieval_meta=retrieval_meta,
         )
 
     if write_output:

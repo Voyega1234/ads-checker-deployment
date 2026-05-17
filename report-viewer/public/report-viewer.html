@@ -119,6 +119,33 @@
       font-size: 12px;
       border-radius: 0;
     }
+    .account-switcher {
+      appearance: none;
+      border: 1px solid rgba(8, 59, 236, .14);
+      border-radius: 7px;
+      background-color: #fff;
+      background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1.5 1.5 6 6l4.5-4.5' fill='none' stroke='%23050505' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-position: right 10px center;
+      background-repeat: no-repeat;
+      background-size: 12px 8px;
+      color: var(--text);
+      font: 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      max-width: min(44vw, 300px);
+      min-height: 28px;
+      padding: 0 32px 0 10px;
+      cursor: pointer;
+      text-overflow: ellipsis;
+      transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+    }
+    .account-switcher:hover {
+      border-color: rgba(8, 59, 236, .28);
+      background-color: #fff;
+    }
+    .account-switcher:focus-visible {
+      outline: 0;
+      border-color: rgba(8, 59, 236, .38);
+      box-shadow: 0 0 0 3px rgba(8, 59, 236, .12);
+    }
     .account-divider {
       width: 1px;
       height: 16px;
@@ -1192,7 +1219,6 @@
       <label class="filter"><input type="checkbox" data-filter="policy"> Policy</label>
       <label class="filter"><input type="checkbox" data-filter="spelling"> Spelling</label>
       <label class="filter"><input type="checkbox" data-filter="placement"> Placement</label>
-      <label class="filter"><input type="checkbox" data-filter="screenshot"> Screenshot</label>
       <div class="resolution-filters" aria-label="Resolution filters">
         <label class="resolution-option"><input type="radio" name="resolution" value="all" checked>All</label>
         <label class="resolution-option"><input type="radio" name="resolution" value="open">Open</label>
@@ -1252,6 +1278,8 @@
     const appState = {
       reportId: "",
       report: null,
+      reportUrl: "",
+      accountReports: [],
       resolved: new Map(),
       storageKey: "",
       remoteStateEnabled: isRemoteStateHost(),
@@ -1280,9 +1308,11 @@
       const alert = await response.json();
       const report = normalizeAlert(alert);
       appState.report = report;
+      appState.reportUrl = reportUrl;
       appState.reportId = createReportId(reportUrl, alert);
       appState.storageKey = `adComplianceResolved:${appState.reportId}`;
       renderReport(report);
+      loadAccountReports(report).catch(() => null);
       bindFilters();
       await loadIssueStates();
       applyResolvedStates();
@@ -1399,7 +1429,7 @@
     function renderReport(report) {
       const meta = report.meta;
       const date = formatDate(meta.generatedAt);
-      els.subhead.innerHTML = `<span class="account-pill"><b>${escapeHtml(meta.clientName || meta.accountName || "Unknown client")}</b><span class="account-divider"></span><code>${escapeHtml(meta.accountId || "")}</code></span><span>${escapeHtml(date)}</span>`;
+      renderAccountLine(report, date);
       document.title = `${meta.clientName || "Ad Compliance"} Report`;
       els.ads.innerHTML = metricValue(meta.adCount || 0, `${meta.creativeCount || 0} creatives`);
       const pc = Number(meta.policyCreativeCount || 0);
@@ -1421,6 +1451,75 @@
       setMetricState(els.placementCard, pl);
       els.groups.innerHTML = report.groups.map(renderGroupCard).join("");
       applyFilters();
+    }
+
+    function renderAccountLine(report, date = formatDate(report.meta?.generatedAt)) {
+      const meta = report.meta || {};
+      const clientName = meta.clientName || meta.accountName || "Unknown client";
+      const accountId = normalizeAccountId(meta.accountId || "");
+      const reports = appState.accountReports || [];
+      const hasSwitcher = reports.length > 1;
+      const accountIdControl = hasSwitcher
+        ? `<select class="account-switcher" id="account-switcher" aria-label="Switch ad account report">
+            ${reports.map((item) => {
+              const itemAccountId = normalizeAccountId(item.accountId);
+              const selected = itemAccountId === accountId ? " selected" : "";
+              return `<option value="${escapeAttr(itemAccountId)}"${selected}>${escapeHtml(itemAccountId)}</option>`;
+            }).join("")}
+          </select>`
+        : `<code>${escapeHtml(accountId)}</code>`;
+      els.subhead.innerHTML = `<span class="account-pill"><b>${escapeHtml(clientName)}</b><span class="account-divider"></span>${accountIdControl}</span><span>${escapeHtml(date)}</span>`;
+      const switcher = document.querySelector("#account-switcher");
+      if (switcher) {
+        switcher.addEventListener("change", () => {
+          const selected = reports.find((item) => normalizeAccountId(item.accountId) === switcher.value);
+          if (!selected) return;
+          const nextUrl = selected.viewerUrl || buildViewerUrl(selected.reportUrl);
+          if (nextUrl) window.location.href = nextUrl;
+        });
+      }
+    }
+
+    async function loadAccountReports(report) {
+      const meta = report.meta || {};
+      const clientName = meta.clientName || "";
+      if (!clientName || !isRemoteStateHost()) return;
+      const response = await fetch(`/api/report-index?clientName=${encodeURIComponent(clientName)}`);
+      if (!response.ok) return;
+      const payload = await response.json();
+      const reports = Array.isArray(payload.reports)
+        ? payload.reports.filter((item) => item.reportUrl || item.viewerUrl)
+        : [];
+      appState.accountReports = ensureCurrentReport(reports, report);
+      if (appState.accountReports.length > 1) renderAccountLine(report);
+    }
+
+    function ensureCurrentReport(reports, report) {
+      const meta = report.meta || {};
+      const currentAccountId = normalizeAccountId(meta.accountId || "");
+      const exists = reports.some((item) => normalizeAccountId(item.accountId) === currentAccountId);
+      if (exists || !currentAccountId) return reports;
+      return [{
+        clientName: meta.clientName || "",
+        accountId: currentAccountId,
+        accountName: meta.accountName || currentAccountId,
+        reportUrl: appState.reportUrl,
+        viewerUrl: window.location.href,
+        reportGeneratedAt: meta.generatedAt || null
+      }, ...reports];
+    }
+
+    function buildViewerUrl(reportUrl) {
+      if (!reportUrl) return "";
+      const url = new URL(window.location.href);
+      url.searchParams.set("report", reportUrl);
+      return url.toString();
+    }
+
+    function normalizeAccountId(value) {
+      const raw = String(value || "").trim();
+      if (!raw) return "";
+      return raw.startsWith("act_") ? raw : `act_${raw}`;
     }
 
 

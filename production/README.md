@@ -20,6 +20,9 @@ once.
 - `report-viewer` remains the Vercel app for reading report JSON.
 - `production/shared` documents the expected report/env contracts.
 - `production/scripts` contains safe wrapper commands.
+- `production/docs/compliance-flow.md` is the living source of truth for the
+  end-to-end flow, including Slack routing, webhook runs, policy runners, and
+  known gaps.
 
 ## Recommended Rollout
 

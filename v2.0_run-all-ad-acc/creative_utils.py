@@ -68,11 +68,64 @@ def print_log(log_message: str) -> None:
     else:
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {log_message}")
 
+def _clean_text(value) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _first_text(*values) -> str:
+    for value in values:
+        text = _clean_text(value)
+        if text:
+            return text
+    return ""
+
+
+def _texts_from_asset_feed_spec(asset_feed_spec: dict) -> list[str]:
+    out: list[str] = []
+    for item in asset_feed_spec.get("bodies") or []:
+        if not isinstance(item, dict):
+            continue
+        text = _clean_text(item.get("text"))
+        if text and text not in out:
+            out.append(text)
+    return out
+
+
+def _text_from_object_story_spec(object_story_spec: dict) -> str:
+    link_data = object_story_spec.get("link_data") or {}
+    video_data = object_story_spec.get("video_data") or {}
+    photo_data = object_story_spec.get("photo_data") or {}
+    template_data = object_story_spec.get("template_data") or {}
+    return _first_text(
+        link_data.get("message"),
+        video_data.get("message"),
+        video_data.get("caption"),
+        photo_data.get("message"),
+        template_data.get("message"),
+    )
+
+
 def extract_text(creative: dict) -> str:
-    """Primary copy from AdCreative.body (Graph nested field creative.body)."""
-    text = creative.get("body")
-    if text is not None and str(text).strip():
-        return str(text).strip()
+    """
+    Primary ad copy from Meta creative fields.
+
+    Some dynamic/Advantage+ creatives do not populate creative.body; their caption is
+    under asset_feed_spec.bodies[].text or object_story_spec.*.message.
+    """
+    text = _first_text(creative.get("body"))
+    if text:
+        return text
+
+    text = _text_from_object_story_spec(creative.get("object_story_spec") or {})
+    if text:
+        return text
+
+    asset_texts = _texts_from_asset_feed_spec(creative.get("asset_feed_spec") or {})
+    if asset_texts:
+        return "\n\n".join(asset_texts)
+
     return "(no caption)"
 
 

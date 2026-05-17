@@ -126,23 +126,8 @@ def submit_batch(args: argparse.Namespace) -> int:
     raw_prompt = policy_rule_checker.read_prompt_template()
     supabase_url = policy_rule_checker.get_required_env("SUPABASE_URL")
     supabase_key = policy_rule_checker.get_supabase_key()
-    thai_law_rows = policy_rule_checker.fetch_policy_rules(
-        "thai_law", supabase_url=supabase_url, supabase_key=supabase_key
-    )
-    meta_policy_rows = policy_rule_checker.fetch_policy_rules(
-        "meta_policy", supabase_url=supabase_url, supabase_key=supabase_key
-    )
-    rules_block = policy_rule_checker.build_rules_block(
-        thai_law_rows + meta_policy_rows,
-        max_rules=policy_rule_checker.RULES_BLOCK_MAX_RULES,
-    )
-    prompt_text = policy_rule_checker.build_prompt_text(
-        raw_prompt,
-        rules_block=rules_block,
-        quick_reference_block=policy_rule_checker.build_quick_reference_block(),
-        message="",
-    )
-    system_instruction = "\n".join([prompt_text, "", policy_rule_checker.build_task_instruction_caption_only()])
+    quick_reference_block = policy_rule_checker.build_quick_reference_block()
+    task_instruction = policy_rule_checker.build_task_instruction_caption_only()
 
     requests_path = out_dir / f"batch-policy-{account_num}-{run_id}.jsonl"
     state_path = out_dir / f"batch-policy-{account_num}-{run_id}.state.json"
@@ -155,6 +140,22 @@ def submit_batch(args: argparse.Namespace) -> int:
             if ad_id in fetch_map:
                 ad_obj, _ = fetch_map[ad_id]
                 ad_name = (ad_obj.get("name") or "")[:200]
+            policy_rows, retrieval_meta = policy_rule_checker.get_policy_rules_for_caption(
+                text_key,
+                supabase_url=supabase_url,
+                supabase_key=supabase_key,
+            )
+            rules_block = policy_rule_checker.build_rules_block(
+                policy_rows,
+                max_rules=policy_rule_checker.RULES_BLOCK_MAX_RULES,
+            )
+            prompt_text = policy_rule_checker.build_prompt_text(
+                raw_prompt,
+                rules_block=rules_block,
+                quick_reference_block=quick_reference_block,
+                message="",
+            )
+            system_instruction = "\n".join([prompt_text, "", task_instruction])
             payload = policy_rule_checker.build_gemini_payload(
                 [{"text": f"=== INPUT_MESSAGE START ===\n{text_key}\n=== INPUT_MESSAGE END ==="}],
                 system_instruction=system_instruction,
@@ -164,6 +165,8 @@ def submit_batch(args: argparse.Namespace) -> int:
                 "text_key": text_key,
                 "representative_ad_id": ad_id,
                 "representative_ad_name": ad_name,
+                "policy_rule_count": len(policy_rows),
+                "policy_rule_retrieval": retrieval_meta,
                 "records": recs,
             }
 

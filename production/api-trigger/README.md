@@ -46,6 +46,7 @@ Run all active accounts:
 {
   "allAccounts": true,
   "mode": "full",
+  "policyRunner": "hybrid",
   "accountDelay": 5
 }
 ```
@@ -151,9 +152,14 @@ Body for all routed accounts:
 {
   "allAccounts": true,
   "mode": "full",
+  "policyRunner": "hybrid",
   "accountDelay": 5
 }
 ```
+
+`policyRunner` supports `hybrid`, `legacy`, and `batch`. `hybrid` is the worker
+default and chooses batch for larger accounts based on active ad count and
+unique ad-text group count.
 
 For Cloud Run:
 

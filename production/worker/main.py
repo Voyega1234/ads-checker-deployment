@@ -24,6 +24,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -81,10 +82,34 @@ def main() -> int:
     parser.add_argument("--unified-report", default="")
     parser.add_argument("--skip-slack", action="store_true")
     parser.add_argument(
+        "--disable-policy-smart-skip",
+        action="store_true",
+        default=os.environ.get("POLICY_SMART_SKIP", "1").strip().lower() in {"0", "false", "no", "off"},
+        help=(
+            "Always enter the policy runner. By default, policy is skipped when active ads "
+            "have the same creative/text as meta_ad_check_db and no webhook new ad IDs are present."
+        ),
+    )
+    parser.add_argument(
         "--policy-runner",
-        choices=["legacy", "batch"],
-        default=os.environ.get("POLICY_RUNNER", "legacy"),
-        help="Policy assessment runner. legacy keeps current realtime worker; batch uses Gemini Batch API.",
+        choices=["legacy", "batch", "hybrid"],
+        default=os.environ.get("POLICY_RUNNER", "hybrid"),
+        help=(
+            "Policy assessment runner. legacy keeps current realtime worker; "
+            "batch uses Gemini Batch API; hybrid chooses batch for larger accounts."
+        ),
+    )
+    parser.add_argument(
+        "--hybrid-batch-min-ads",
+        type=int,
+        default=int(os.environ.get("POLICY_HYBRID_BATCH_MIN_ADS", "40")),
+        help="Use batch in hybrid mode when active fetched ads are at least this number.",
+    )
+    parser.add_argument(
+        "--hybrid-batch-min-text-groups",
+        type=int,
+        default=int(os.environ.get("POLICY_HYBRID_BATCH_MIN_TEXT_GROUPS", "20")),
+        help="Use batch in hybrid mode when unique fetched ad text groups are at least this number.",
     )
     parser.add_argument(
         "--batch-poll-interval",
@@ -171,20 +196,38 @@ def run_selected_accounts(args: argparse.Namespace) -> int:
 def run_account_list(accounts: list[dict], args: argparse.Namespace) -> int:
     print(f"\nRunning {len(accounts)} active accounts\n{'─' * 50}")
     errors: list[tuple[str, str]] = []
+    timings: list[dict] = []
 
     for i, acc in enumerate(accounts, 1):
         account_id = acc["ad_account_act_id"]
         account_name = acc.get("account_name") or account_id
+        started = time.monotonic()
         print(f"\n[{i}/{len(accounts)}] {account_name} ({account_id})")
+        status = "success"
+        error_msg = ""
         try:
             run_single_account(account_id, args)
         except SystemExit as exc:
             msg = str(exc)
             print(f"  ERROR: {msg}")
             errors.append((account_id, msg))
+            status = "failed"
+            error_msg = msg
         except Exception as exc:
             print(f"  ERROR: {exc}")
             errors.append((account_id, str(exc)))
+            status = "failed"
+            error_msg = str(exc)
+        elapsed = time.monotonic() - started
+        timings.append({
+            "account": account_id,
+            "account_name": account_name,
+            "status": status,
+            "elapsed_sec": round(elapsed, 1),
+            "elapsed": format_duration(elapsed),
+            "error": error_msg,
+        })
+        print(f"  account_done status={status} elapsed={format_duration(elapsed)} elapsed_sec={elapsed:.1f}")
 
         if i < len(accounts) and args.account_delay > 0:
             print(f"  Waiting {args.account_delay}s before next account...")
@@ -196,8 +239,28 @@ def run_account_list(accounts: list[dict], args: argparse.Namespace) -> int:
         print(f"\nFailed accounts ({len(errors)}):")
         for account_id, msg in errors:
             print(f"  {account_id}: {msg}")
+    print("\nAccount timings:")
+    for item in timings:
+        suffix = f" error={item['error']}" if item["error"] else ""
+        print(
+            f"  {item['account']} | {item['account_name']} | "
+            f"{item['status']} | {item['elapsed']} ({item['elapsed_sec']}s){suffix}"
+        )
+    print("ACCOUNT_TIMINGS_JSON=" + json.dumps(timings, ensure_ascii=False))
+    if errors:
         return 1
     return 0
+
+
+def format_duration(seconds: float) -> str:
+    total_seconds = max(0, int(round(seconds)))
+    minutes, secs = divmod(total_seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return f"{hours}h {minutes}m {secs}s"
+    if minutes:
+        return f"{minutes}m {secs}s"
+    return f"{secs}s"
 
 
 def run_single_account(account_raw: str, args: argparse.Namespace) -> int:
@@ -205,6 +268,7 @@ def run_single_account(account_raw: str, args: argparse.Namespace) -> int:
     account_num = account.replace("act_", "")
     new_ad_ids = parse_csv_values(args.new_ad_ids)
     event_ids = parse_csv_values(args.event_ids)
+    event_batch_id = str(uuid.uuid4())
     slack_route = None
     if args.mode in {"policy", "slack", "full"}:
         slack_route = resolve_slack_route(
@@ -227,19 +291,25 @@ def run_single_account(account_raw: str, args: argparse.Namespace) -> int:
     )
 
     if args.mode in {"policy", "full"}:
-        if args.policy_runner == "batch":
-            client_id = (slack_route.client_id if slack_route else "").strip()
-            if not client_id:
-                raise SystemExit(f"Cannot run batch policy without a meta_adaccounts Client for {account}")
-            run_policy_batch(
-                account,
-                client_id=client_id,
-                poll_interval=args.batch_poll_interval,
-                timeout=args.batch_timeout,
-                force_recheck=args.batch_force_recheck,
-            )
+        client_id = (slack_route.client_id if slack_route else "").strip()
+        if should_skip_policy(account, account_num, client_id, new_ad_ids, args):
+            print("  Policy smart skip: active ad content unchanged and no webhook new ad IDs.")
         else:
-            run_policy(account, channel=slack_route.channel_id if slack_route else args.channel)
+            policy_runner = args.policy_runner
+            if policy_runner == "hybrid":
+                policy_runner = choose_hybrid_policy_runner(account, args)
+            if policy_runner == "batch":
+                if not client_id:
+                    raise SystemExit(f"Cannot run batch policy without a meta_adaccounts Client for {account}")
+                run_policy_batch(
+                    account,
+                    client_id=client_id,
+                    poll_interval=args.batch_poll_interval,
+                    timeout=args.batch_timeout,
+                    force_recheck=args.batch_force_recheck,
+                )
+            else:
+                run_policy(account, channel=slack_route.channel_id if slack_route else args.channel)
 
     if args.mode in {"placement", "full"}:
         run_placement(account, account_output_dir)
@@ -265,6 +335,7 @@ def run_single_account(account_raw: str, args: argparse.Namespace) -> int:
             account_num,
             new_ad_ids=new_ad_ids,
             event_ids=event_ids,
+            batch_id=event_batch_id,
             source=args.source,
         )
 
@@ -422,6 +493,170 @@ def run_policy_batch(
     run_command(command, cwd=POLICY_DIR)
 
 
+def choose_hybrid_policy_runner(account: str, args: argparse.Namespace) -> str:
+    plan = get_hybrid_policy_plan(account)
+    min_ads = max(1, int(args.hybrid_batch_min_ads))
+    min_text_groups = max(1, int(args.hybrid_batch_min_text_groups))
+    fetched_ads = int(plan.get("fetched_ads") or 0)
+    unique_text_groups = int(plan.get("unique_text_groups") or 0)
+    ads_with_text = int(plan.get("ads_with_text") or 0)
+    ads_missing_text = int(plan.get("ads_missing_text") or 0)
+    use_batch = fetched_ads >= min_ads or unique_text_groups >= min_text_groups
+    runner = "batch" if use_batch else "legacy"
+    reason = []
+    if fetched_ads >= min_ads:
+        reason.append(f"fetched_ads>={min_ads}")
+    if unique_text_groups >= min_text_groups:
+        reason.append(f"unique_text_groups>={min_text_groups}")
+    if not reason:
+        reason.append("below_threshold")
+    print(
+        "  Policy runner hybrid decision: "
+        f"runner={runner} fetched_ads={fetched_ads} ads_with_text={ads_with_text} "
+        f"ads_missing_text={ads_missing_text} unique_text_groups={unique_text_groups} "
+        f"thresholds=ads:{min_ads},text_groups:{min_text_groups} "
+        f"reason={','.join(reason)}"
+    )
+    return runner
+
+
+def should_skip_policy(
+    account: str,
+    account_num: str,
+    client_id: str,
+    new_ad_ids: list[str],
+    args: argparse.Namespace,
+) -> bool:
+    if args.disable_policy_smart_skip:
+        print("  Policy smart skip disabled.")
+        return False
+    if args.batch_force_recheck:
+        print("  Policy smart skip bypassed: --batch-force-recheck set.")
+        return False
+    if new_ad_ids:
+        print(f"  Policy smart skip bypassed: webhook new_ad_ids={len(new_ad_ids)}.")
+        return False
+    if not client_id:
+        print("  Policy smart skip bypassed: missing client id.")
+        return False
+    plan = get_policy_smart_skip_plan(account, account_num, client_id)
+    print(
+        "  Policy smart skip preflight: "
+        f"fetched_ads={plan.get('fetched_ads', 0)} ads_with_text={plan.get('ads_with_text', 0)} "
+        f"unchanged={plan.get('unchanged', 0)} changed={plan.get('changed', 0)} "
+        f"missing_db={plan.get('missing_db', 0)} missing_text={plan.get('missing_text', 0)}"
+    )
+    if int(plan.get("ads_with_text") or 0) <= 0:
+        return True
+    return bool(plan.get("can_skip"))
+
+
+def get_policy_smart_skip_plan(account: str, account_num: str, client_id: str) -> dict:
+    script = (
+        "import json, os; "
+        "from env_loader import load_project_env; load_project_env(); "
+        "import creative_utils, meta_api, supabase_db_helper; "
+        "account=os.environ['POLICY_SKIP_ACCOUNT']; "
+        "account_num=int(os.environ['POLICY_SKIP_ACCOUNT_NUM']); "
+        "client_id=os.environ['POLICY_SKIP_CLIENT_ID']; "
+        "ads=meta_api.get_active_ads_with_creatives(account_id=account); "
+        "snapshot=supabase_db_helper.fetch_meta_check_db_snapshot(client_id, account_num); "
+        "changed=[]; missing_db=[]; unchanged=0; missing_text=0; ads_with_text=0; "
+        "\nfor ad in ads:\n"
+        "    creative=ad.get('creative') or {}\n"
+        "    text=creative_utils.extract_text(creative)\n"
+        "    clean=' '.join(str(text or '').split())\n"
+        "    if not clean or clean == '(no caption)':\n"
+        "        missing_text += 1\n"
+        "        continue\n"
+        "    ads_with_text += 1\n"
+        "    ad_id=str(ad.get('id') or '')\n"
+        "    creative_id=str(creative.get('id') or '')\n"
+        "    prev=snapshot.get(ad_id)\n"
+        "    if not prev:\n"
+        "        missing_db.append(ad_id)\n"
+        "        continue\n"
+        "    prev_text=' '.join(str(prev.get('ad_text') or '').split())\n"
+        "    prev_creative=str(prev.get('creative_id') or '')\n"
+        "    if prev_text == clean and prev_creative == creative_id:\n"
+        "        unchanged += 1\n"
+        "    else:\n"
+        "        changed.append(ad_id)\n"
+        "print(json.dumps({"
+        "'fetched_ads': len(ads), "
+        "'ads_with_text': ads_with_text, "
+        "'missing_text': missing_text, "
+        "'unchanged': unchanged, "
+        "'changed': len(changed), "
+        "'missing_db': len(missing_db), "
+        "'changed_ad_ids': changed[:20], "
+        "'missing_db_ad_ids': missing_db[:20], "
+        "'can_skip': ads_with_text > 0 and not changed and not missing_db"
+        "}, ensure_ascii=False))"
+    )
+    env = os.environ.copy()
+    env["POLICY_SKIP_ACCOUNT"] = account
+    env["POLICY_SKIP_ACCOUNT_NUM"] = account_num
+    env["POLICY_SKIP_CLIENT_ID"] = client_id
+    result = subprocess.run(
+        [str(_policy_python()), "-c", script],
+        cwd=str(POLICY_DIR),
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    if result.returncode != 0:
+        raise SystemExit(f"Policy smart skip preflight failed for {account}: {result.stderr.strip()}")
+    try:
+        return json.loads(result.stdout.strip())
+    except json.JSONDecodeError as exc:
+        raise SystemExit(
+            f"Policy smart skip preflight returned invalid JSON for {account}: {result.stdout.strip()}"
+        ) from exc
+
+
+def get_hybrid_policy_plan(account: str) -> dict:
+    script = (
+        "import json, os; "
+        "from env_loader import load_project_env; load_project_env(); "
+        "import creative_utils, meta_api; "
+        "account=os.environ['HYBRID_PREFLIGHT_ACCOUNT']; "
+        "ads=meta_api.get_active_ads_with_creatives(account_id=account); "
+        "texts=[]; missing=0; "
+        "\nfor ad in ads:\n"
+        "    creative=ad.get('creative') or {}\n"
+        "    text=creative_utils.extract_text(creative)\n"
+        "    clean=' '.join(str(text or '').split())\n"
+        "    if clean and clean != '(no caption)':\n"
+        "        texts.append(clean)\n"
+        "    else:\n"
+        "        missing += 1\n"
+        "print(json.dumps({"
+        "'fetched_ads': len(ads), "
+        "'ads_with_text': len(texts), "
+        "'ads_missing_text': missing, "
+        "'unique_text_groups': len(set(texts))"
+        "}, ensure_ascii=False))"
+    )
+    env = os.environ.copy()
+    env["HYBRID_PREFLIGHT_ACCOUNT"] = account
+    result = subprocess.run(
+        [str(_policy_python()), "-c", script],
+        cwd=str(POLICY_DIR),
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    if result.returncode != 0:
+        raise SystemExit(f"Hybrid policy preflight failed for {account}: {result.stderr.strip()}")
+    try:
+        return json.loads(result.stdout.strip())
+    except json.JSONDecodeError as exc:
+        raise SystemExit(
+            f"Hybrid policy preflight returned invalid JSON for {account}: {result.stdout.strip()}"
+        ) from exc
+
+
 def run_placement(account: str, account_output_dir: Path) -> None:
     env = os.environ.copy()
     env["META_AD_ACCOUNT_ID"] = account
@@ -430,7 +665,7 @@ def run_placement(account: str, account_output_dir: Path) -> None:
     env["OUTPUT_DIR"] = str(account_output_dir)
     env.setdefault("AD_LIMIT", "all")
     env.setdefault("MIN_SPEND", "0")
-    run_command(["node", "src/index.js", "--json"], cwd=PROJECT_ROOT, env=env)
+    run_command(["node", "src/index.js", "--json-summary"], cwd=PROJECT_ROOT, env=env)
 
 
 def run_unified(
@@ -475,6 +710,7 @@ def mark_status_events_processed(
     *,
     new_ad_ids: list[str],
     event_ids: list[str],
+    batch_id: str,
     source: str,
 ) -> None:
     if not event_ids and not new_ad_ids:
@@ -502,6 +738,7 @@ def mark_status_events_processed(
     url = f"{supabase_url}/rest/v1/meta_ad_status_events?{query}"
     payload = {
         "processed_at": datetime.now(timezone.utc).isoformat(),
+        "batch_id": batch_id,
         "process_error": None,
     }
 
@@ -509,9 +746,12 @@ def mark_status_events_processed(
         rows = patch_supabase_rows(url, supabase_key, payload)
         print(f"  Marked meta_ad_status_events processed rows={len(rows)}")
     except Exception as exc:
-        if "process_error" in str(exc):
+        if "batch_id" in str(exc) or "process_error" in str(exc):
             try:
-                rows = patch_supabase_rows(url, supabase_key, {"processed_at": payload["processed_at"]})
+                fallback_payload = {"processed_at": payload["processed_at"]}
+                if "batch_id" not in str(exc):
+                    fallback_payload["batch_id"] = batch_id
+                rows = patch_supabase_rows(url, supabase_key, fallback_payload)
                 print(f"  Marked meta_ad_status_events processed rows={len(rows)}")
                 return
             except Exception as retry_exc:

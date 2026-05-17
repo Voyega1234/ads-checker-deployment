@@ -40,6 +40,29 @@ Run full flow but do not send Slack:
 python production/worker/main.py --account act_4599179240326859 --mode full --skip-slack
 ```
 
+Run full flow with automatic policy runner selection:
+
+```bash
+python production/worker/main.py \
+  --account act_4599179240326859 \
+  --mode full \
+  --policy-runner hybrid
+```
+
+Policy smart-skip is enabled by default. If active ads have the same
+`creative_id` and `ad_text` already saved in `meta_ad_check_db`, and no webhook
+`newAdIds` are passed, the worker skips policy/spelling for that account and
+continues to placement/report/Slack.
+
+Force policy even when content is unchanged:
+
+```bash
+python production/worker/main.py \
+  --account act_4599179240326859 \
+  --mode full \
+  --disable-policy-smart-skip
+```
+
 Run full flow and send Slack:
 
 ```bash

@@ -1,5 +1,9 @@
 # Runbook
 
+For the full architecture and data flow, read
+`production/docs/compliance-flow.md` first. This runbook is only the command
+cheat sheet.
+
 ## Local Dry Run
 
 First run doctor:

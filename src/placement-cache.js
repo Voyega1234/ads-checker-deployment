@@ -23,8 +23,12 @@ export async function loadPlacementCache(config, accountId) {
   }
 }
 
-export function buildPlacementFingerprint(ad, formats) {
+export function buildPlacementFingerprint(ad, configOrFormats) {
+  const formats = Array.isArray(configOrFormats) ? configOrFormats : configOrFormats.formats || [];
+  const config = Array.isArray(configOrFormats) ? {} : configOrFormats;
   const payload = {
+    cacheVersion: config.placementCacheVersion || "1",
+    validatorModel: config.geminiModel || "",
     creativeId: ad.creativeId || "",
     storyId: ad.creativeEffectiveObjectStoryId || "",
     imageHash: ad.creativeImageHash || "",
@@ -45,6 +49,7 @@ function createPlacementCache(state) {
       const cached = row?.ad_media_assessment_result;
       if (!cached || cached.fingerprint !== fingerprint) return null;
       if (!hasSameFormats(cached.formats, formats)) return null;
+      if (isExpired(cached.cached_at, state.config.placementCacheTtlHours)) return null;
       if (!Array.isArray(cached.results) || !cached.results.length) return null;
       return cached.results;
     },
@@ -110,6 +115,14 @@ function stripResultForCache(result) {
 
 function hasSameFormats(left = [], right = []) {
   return JSON.stringify([...left].sort()) === JSON.stringify([...right].sort());
+}
+
+function isExpired(cachedAt, ttlHours) {
+  const ttl = Number(ttlHours);
+  if (!Number.isFinite(ttl) || ttl <= 0) return false;
+  const timestamp = Date.parse(cachedAt || "");
+  if (!Number.isFinite(timestamp)) return true;
+  return Date.now() - timestamp > ttl * 60 * 60 * 1000;
 }
 
 function buildCacheKey(adId, creativeId) {

@@ -136,7 +136,7 @@ function buildWorkerArgs(body) {
 
   const policyRunner = String(body.policyRunner || body.policy_runner || "").trim().toLowerCase();
   if (policyRunner) {
-    if (!["legacy", "batch"].includes(policyRunner)) throw httpError(400, `invalid policyRunner: ${policyRunner}`);
+    if (!["legacy", "batch", "hybrid"].includes(policyRunner)) throw httpError(400, `invalid policyRunner: ${policyRunner}`);
     args.push("--policy-runner", policyRunner);
   }
   if (body.batchPolicyPollInterval !== undefined || body.batchPollInterval !== undefined) {

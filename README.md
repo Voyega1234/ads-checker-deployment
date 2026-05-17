@@ -5,6 +5,9 @@ It is intentionally small and non-destructive: it calls the existing policy,
 placement, unified report, and Slack sender code instead of moving everything at
 once.
 
+Production flow details live in `production/docs/compliance-flow.md`. Update
+that file whenever runner, webhook, cache, or Slack routing behavior changes.
+
 ## Goals
 
 - One clear entrypoint for local, Mac mini, and Cloud Run runs.
@@ -34,4 +37,3 @@ once.
 
 Do not put secrets in this folder. Use root `.env` locally and platform
 environment variables in Cloud Run/Vercel.
-# ads-checker-deployment

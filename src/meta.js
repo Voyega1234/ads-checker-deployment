@@ -10,7 +10,7 @@ export async function fetchRunnableAds(config, adAccount) {
   const fields = [
     "id",
     "name",
-    "creative{id,name,effective_object_story_id,image_hash,thumbnail_url,object_type,instagram_permalink_url}",
+    "creative{id,name,effective_object_story_id,image_hash,image_url,thumbnail_url,object_type,instagram_permalink_url,asset_feed_spec}",
     "effective_status",
     "configured_status",
     "campaign{id,name,effective_status,configured_status}",
@@ -47,30 +47,96 @@ export async function fetchRunnableAds(config, adAccount) {
     url = payload.paging?.next;
   }
 
+  const imageUrlsByHash = await resolveAdImageUrlsByHash(config, adAccount.id, ads);
+
   return ads
-    .map((ad) => ({
-      id: ad.id,
-      name: ad.name || ad.id,
-      creativeId: ad.creative?.id || "",
-      creativeName: ad.creative?.name || "",
-      creativeEffectiveObjectStoryId: ad.creative?.effective_object_story_id || "",
-      creativeImageHash: ad.creative?.image_hash || "",
-      creativeThumbnailUrl: ad.creative?.thumbnail_url || "",
-      creativeObjectType: ad.creative?.object_type || "",
-      creativeInstagramPermalinkUrl: ad.creative?.instagram_permalink_url || "",
-      effectiveStatus: ad.effective_status || "",
-      configuredStatus: ad.configured_status || "",
-      campaignName: ad.campaign?.name || "",
-      campaignEffectiveStatus: ad.campaign?.effective_status || "",
-      campaignConfiguredStatus: ad.campaign?.configured_status || "",
-      adsetName: ad.adset?.name || "",
-      adsetEffectiveStatus: ad.adset?.effective_status || "",
-      adsetConfiguredStatus: ad.adset?.configured_status || "",
-      spend: Number.parseFloat(ad.insights?.data?.[0]?.spend || "0")
-    }))
+    .map((ad) => normalizeRunnableAd(ad, imageUrlsByHash))
     .filter((ad) => (config.enforceActiveDelivery ? isActiveDelivery(ad) : true))
     .filter((ad) => ad.spend >= config.minSpend)
     .slice(0, config.adLimit ?? Infinity);
+}
+
+function normalizeRunnableAd(ad, imageUrlsByHash = new Map()) {
+  const creative = ad.creative || {};
+  const assetImage = firstAssetImage(creative);
+  const creativeImageHash = creative.image_hash || assetImage.hash || "";
+  const resolvedImageUrl = creativeImageHash ? imageUrlsByHash.get(creativeImageHash) : "";
+  const creativeThumbnailUrl =
+    creative.thumbnail_url ||
+    creative.image_url ||
+    assetImage.thumbnailUrl ||
+    assetImage.url ||
+    resolvedImageUrl ||
+    "";
+
+  return {
+    id: ad.id,
+    name: ad.name || ad.id,
+    creativeId: creative.id || "",
+    creativeName: creative.name || "",
+    creativeEffectiveObjectStoryId: creative.effective_object_story_id || "",
+    creativeImageHash,
+    creativeThumbnailUrl,
+    creativeObjectType: creative.object_type || "",
+    creativeInstagramPermalinkUrl: creative.instagram_permalink_url || "",
+    effectiveStatus: ad.effective_status || "",
+    configuredStatus: ad.configured_status || "",
+    campaignName: ad.campaign?.name || "",
+    campaignEffectiveStatus: ad.campaign?.effective_status || "",
+    campaignConfiguredStatus: ad.campaign?.configured_status || "",
+    adsetName: ad.adset?.name || "",
+    adsetEffectiveStatus: ad.adset?.effective_status || "",
+    adsetConfiguredStatus: ad.adset?.configured_status || "",
+    spend: Number.parseFloat(ad.insights?.data?.[0]?.spend || "0")
+  };
+}
+
+function firstAssetImage(creative) {
+  const images = creative.asset_feed_spec?.images || [];
+  for (const image of images) {
+    if (!image || typeof image !== "object") continue;
+    const hash = image.hash || image.image_hash || "";
+    const url = image.url || image.image_url || "";
+    const thumbnailUrl = image.thumbnail_url || "";
+    if (hash || url || thumbnailUrl) {
+      return { hash, url, thumbnailUrl };
+    }
+  }
+  return { hash: "", url: "", thumbnailUrl: "" };
+}
+
+async function resolveAdImageUrlsByHash(config, adAccountId, ads) {
+  const hashes = [
+    ...new Set(
+      ads
+        .flatMap((ad) => {
+          const creative = ad.creative || {};
+          return [
+            creative.image_hash,
+            ...(creative.asset_feed_spec?.images || []).map((image) => image?.hash || image?.image_hash)
+          ];
+        })
+        .filter(Boolean)
+    )
+  ];
+
+  if (!hashes.length) return new Map();
+
+  const params = new URLSearchParams({
+    access_token: config.metaAccessToken,
+    fields: "hash,url,permalink_url,width,height,name",
+    hashes: JSON.stringify(hashes)
+  });
+
+  try {
+    const payload = await graphFetch(`${GRAPH_BASE}/${config.metaApiVersion}/${adAccountId}/adimages?${params}`, {
+      timeoutMs: config.metaTimeoutMs
+    });
+    return new Map((payload.data || []).map((image) => [image.hash, image.url || image.permalink_url || ""]));
+  } catch (error) {
+    console.warn(`Ad image hash resolution skipped for ${adAccountId}: ${error.message}`);
+    return new Map();
+  }
 }
 
 export async function resolveSelectedAdAccounts(config) {

@@ -27,6 +27,8 @@ export function loadConfig() {
     previewRetries: parseInteger(process.env.PREVIEW_RETRIES, 2),
     placementConcurrency: Math.max(1, parseInteger(process.env.PLACEMENT_CONCURRENCY, 2)),
     adConcurrency: Math.max(1, parseInteger(process.env.AD_CONCURRENCY, 1)),
+    placementCacheVersion: process.env.PLACEMENT_CACHE_VERSION || "1",
+    placementCacheTtlHours: parseInteger(process.env.PLACEMENT_CACHE_TTL_HOURS, 168),
     forceExitOnComplete: process.env.FORCE_EXIT_ON_COMPLETE !== "0",
     disableRunLock: process.env.DISABLE_RUN_LOCK === "1",
     slackBotToken: process.env.SLACK_BOT_TOKEN || process.env.SLACK_BOT_OAUTH,

@@ -11,6 +11,8 @@ import { uploadScreenshotToSupabase } from "./storage.js";
 const args = new Set(process.argv.slice(2));
 const isDemo = args.has("--demo");
 const asJson = args.has("--json");
+const asJsonSummary = args.has("--json-summary") || args.has("--summary-json");
+const asMachineReadable = asJson || asJsonSummary;
 
 async function main() {
   const config = loadConfig();
@@ -51,7 +53,7 @@ async function runChecks({ config, runStartTime }) {
     const limitedAds = config.adLimit != null ? ads.slice(0, config.adLimit) : ads;
 
     if (!limitedAds.length) {
-      if (!asJson) console.log(`\n[SKIP] ${account.name} — no active ads found`);
+      if (!asMachineReadable) console.log(`\n[SKIP] ${account.name} — no active ads found`);
       continue;
     }
 
@@ -98,12 +100,12 @@ async function runChecks({ config, runStartTime }) {
           results.push(result);
           accountResults.push(result);
 
-          if (!asJson) {
+          if (!asMachineReadable) {
             printResult(result);
           }
         }
 
-        if (!asJson) {
+        if (!asMachineReadable) {
           console.log(`  ⏱  ${run.adElapsed}s for ${config.formats.length} placements`);
         }
 
@@ -119,7 +121,7 @@ async function runChecks({ config, runStartTime }) {
     const accountAvgPerPreview = accountChecks
       ? Number(accountElapsed) / accountChecks
       : 0;
-    if (!asJson) {
+    if (!asMachineReadable) {
       console.log(
         [
           `\n── ${account.name}: ${limitedAds.length} creatives × ${config.formats.length} placements = ${accountChecks} previews`,
@@ -165,33 +167,37 @@ async function runChecks({ config, runStartTime }) {
   const totalChecks = results.length;
   const avgPerAd = totalAds > 0 ? totalElapsed / totalAds : 0;
   const avgPerPreview = totalChecks > 0 ? totalElapsed / totalChecks : 0;
+  const stats = {
+    totalElapsedSeconds: Number(totalElapsed.toFixed(1)),
+    totalElapsed: formatDuration(totalElapsed),
+    totalAds,
+    uniqueCreativeChecks,
+    dedupedAds,
+    cachedAds,
+    placementsPerAd: config.formats.length,
+    totalChecks,
+    avgPerAdSeconds: Number(avgPerAd.toFixed(1)),
+    avgPerAd: formatDuration(avgPerAd),
+    avgPerPreviewSeconds: Number(avgPerPreview.toFixed(1)),
+    avgPerPreview: formatDuration(avgPerPreview)
+  };
 
-  if (asJson) {
-    console.log(
-      JSON.stringify(
-        {
+  if (asMachineReadable) {
+    const payload = asJsonSummary
+      ? {
+          reportPath,
+          resultCount: results.length,
+          accountAlerts: summarizeAccountAlerts(accountAlerts),
+          stats
+        }
+      : {
           reportPath,
           results,
           accountAlerts,
-          stats: {
-            totalElapsedSeconds: Number(totalElapsed.toFixed(1)),
-            totalElapsed: formatDuration(totalElapsed),
-            totalAds,
-            uniqueCreativeChecks,
-            dedupedAds,
-            cachedAds,
-            placementsPerAd: config.formats.length,
-            totalChecks,
-            avgPerAdSeconds: Number(avgPerAd.toFixed(1)),
-            avgPerAd: formatDuration(avgPerAd),
-            avgPerPreviewSeconds: Number(avgPerPreview.toFixed(1)),
-            avgPerPreview: formatDuration(avgPerPreview)
-          }
-        },
-        null,
-        2
-      )
-    );
+          stats
+        };
+
+    console.log(JSON.stringify(payload, null, 2));
   } else {
     console.log(`\n${"─".repeat(60)}`);
     console.log(`📊 Run Summary`);
@@ -229,6 +235,18 @@ async function writeReport(outputDir, results, accountAlerts = []) {
     JSON.stringify({ generatedAt: new Date(), results, accountAlerts }, null, 2)
   );
   return reportPath;
+}
+
+function summarizeAccountAlerts(accountAlerts = []) {
+  return accountAlerts.map((item) => ({
+    accountId: item.accountId || null,
+    accountName: item.accountName || null,
+    clientName: item.clientName || null,
+    skipped: Boolean(item.alert?.skipped),
+    reason: item.alert?.reason || null,
+    slackChannel: item.alert?.channel || item.alert?.channelId || null,
+    error: item.alert?.error || null
+  }));
 }
 
 async function acquireRunLock(config) {
@@ -455,7 +473,7 @@ function printResult(result) {
 async function processAd({ ad, account, config, isDemo, dedupeCache, placementCache }) {
   const adStartTime = Date.now();
   const dedupeKey = buildCreativeDedupeKey(account, ad);
-  const fingerprint = buildPlacementFingerprint(ad, config.formats);
+  const fingerprint = buildPlacementFingerprint(ad, config);
   const cachedResults = placementCache?.get(ad, fingerprint, config.formats);
 
   if (cachedResults) {
@@ -632,7 +650,7 @@ function ensureTrailingSlash(value) {
 }
 
 function logProgress(message) {
-  if (asJson) {
+  if (asMachineReadable) {
     console.error(message);
     return;
   }
