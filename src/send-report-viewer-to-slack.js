@@ -20,12 +20,24 @@ async function main() {
     console.log(JSON.stringify({ reportUrl }, null, 2));
     return;
   }
+  const fullReportUrl = buildViewerUrl(viewerUrl, reportUrl);
+  if (args["index-only"]) {
+    await logSlackSend({
+      alert,
+      channelId,
+      slackTs: null,
+      reportUrl,
+      viewerUrl: fullReportUrl,
+      status: "indexed"
+    });
+    console.log(JSON.stringify({ reportUrl, viewerUrl: fullReportUrl, indexed: true }, null, 2));
+    return;
+  }
   if (!Number(alert.meta?.threadCount || 0) && !args["send-empty"]) {
     console.log(JSON.stringify({ reportUrl, skippedSlack: true, reason: "no_open_issues" }, null, 2));
     return;
   }
 
-  const fullReportUrl = buildViewerUrl(viewerUrl, reportUrl);
   const response = await postSlackMessage({
     botToken: getSlackToken(),
     channelId,

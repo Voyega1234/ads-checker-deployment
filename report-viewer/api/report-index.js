@@ -19,7 +19,7 @@ module.exports = async function handler(request, response) {
     }
 
     const rows = await supabaseFetch(
-      `/${TABLE_NAME}?select=client_name,account_id,account_name,report_url,viewer_url,report_generated_at,channel_id,slack_ts,meta&client_name=eq.${encodeURIComponent(clientName)}&status=eq.sent&report_url=not.is.null&order=report_generated_at.desc.nullslast&limit=200`,
+      `/${TABLE_NAME}?select=client_name,account_id,account_name,report_url,viewer_url,report_generated_at,channel_id,slack_ts,meta&client_name=eq.${encodeURIComponent(clientName)}&status=in.(sent,indexed)&report_url=not.is.null&order=report_generated_at.desc.nullslast&limit=200`,
       { method: "GET" }
     );
 

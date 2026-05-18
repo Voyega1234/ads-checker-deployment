@@ -82,6 +82,21 @@ def main() -> int:
     parser.add_argument("--unified-report", default="")
     parser.add_argument("--skip-slack", action="store_true")
     parser.add_argument(
+        "--disable-recent-slack-skip",
+        action="store_true",
+        default=os.environ.get("RECENT_SLACK_SKIP", "1").strip().lower() in {"0", "false", "no", "off"},
+        help=(
+            "Do not skip accounts that already sent an ad_compliance_slack_sends "
+            "status=sent row within the recent Slack window."
+        ),
+    )
+    parser.add_argument(
+        "--recent-slack-skip-hours",
+        type=float,
+        default=float(os.environ.get("RECENT_SLACK_SKIP_HOURS", "24")),
+        help="Skip account if ad_compliance_slack_sends has status=sent within this many hours.",
+    )
+    parser.add_argument(
         "--disable-policy-smart-skip",
         action="store_true",
         default=os.environ.get("POLICY_SMART_SKIP", "1").strip().lower() in {"0", "false", "no", "off"},
@@ -197,6 +212,7 @@ def run_account_list(accounts: list[dict], args: argparse.Namespace) -> int:
     print(f"\nRunning {len(accounts)} active accounts\n{'─' * 50}")
     errors: list[tuple[str, str]] = []
     timings: list[dict] = []
+    slack_send_tracker: set[str] = set()
 
     for i, acc in enumerate(accounts, 1):
         account_id = acc["ad_account_act_id"]
@@ -206,7 +222,7 @@ def run_account_list(accounts: list[dict], args: argparse.Namespace) -> int:
         status = "success"
         error_msg = ""
         try:
-            run_single_account(account_id, args)
+            run_single_account(account_id, args, slack_send_tracker=slack_send_tracker)
         except SystemExit as exc:
             msg = str(exc)
             print(f"  ERROR: {msg}")
@@ -263,7 +279,61 @@ def format_duration(seconds: float) -> str:
     return f"{secs}s"
 
 
-def run_single_account(account_raw: str, args: argparse.Namespace) -> int:
+def build_slack_dedupe_key(route) -> str:
+    client = (route.client_id or route.account_name or route.account or "").strip().lower()
+    channel = (route.channel_id or "").strip().lower()
+    return f"{client}|{channel}"
+
+
+def should_check_recent_slack_send(args: argparse.Namespace, slack_route) -> bool:
+    if args.disable_recent_slack_skip:
+        return False
+    if args.recent_slack_skip_hours <= 0:
+        return False
+    if args.mode == "full" and args.skip_slack:
+        return False
+    if args.mode not in {"full", "slack"}:
+        return False
+    if not slack_route or not slack_route.channel_id:
+        return False
+    return True
+
+
+def find_recent_slack_send(account: str, args: argparse.Namespace) -> dict | None:
+    supabase_url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    supabase_key = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_KEY") or ""
+    if not supabase_url or not supabase_key:
+        print("  Recent Slack skip disabled for this account (missing Supabase env).")
+        return None
+
+    cutoff = datetime.fromtimestamp(
+        time.time() - (float(args.recent_slack_skip_hours) * 60 * 60),
+        tz=timezone.utc,
+    ).isoformat()
+    query = urllib.parse.urlencode(
+        {
+            "select": "id,account_id,channel_id,slack_ts,report_url,viewer_url,sent_at,status",
+            "account_id": f"eq.{account}",
+            "status": "eq.sent",
+            "sent_at": f"gte.{cutoff}",
+            "order": "sent_at.desc",
+            "limit": "1",
+        }
+    )
+    url = f"{supabase_url}/rest/v1/ad_compliance_slack_sends?{query}"
+    try:
+        rows = get_supabase_rows(url, supabase_key)
+    except Exception as exc:
+        print(f"  Recent Slack skip check failed; continuing run: {exc}")
+        return None
+    return rows[0] if rows else None
+
+
+def run_single_account(
+    account_raw: str,
+    args: argparse.Namespace,
+    slack_send_tracker: set[str] | None = None,
+) -> int:
     account = normalize_account(account_raw)
     account_num = account.replace("act_", "")
     new_ad_ids = parse_csv_values(args.new_ad_ids)
@@ -277,6 +347,23 @@ def run_single_account(account_raw: str, args: argparse.Namespace) -> int:
             policy_dir=POLICY_DIR,
             fallback_channel=args.channel,
         )
+
+    recent_send = find_recent_slack_send(account, args) if should_check_recent_slack_send(args, slack_route) else None
+    if recent_send:
+        print(
+            "  Recent Slack send found; skipping account "
+            f"sent_at={recent_send.get('sent_at') or '-'} channel={recent_send.get('channel_id') or '-'} "
+            f"slack_ts={recent_send.get('slack_ts') or '-'}"
+        )
+        if args.mark_events_processed:
+            mark_status_events_processed(
+                account_num,
+                new_ad_ids=new_ad_ids,
+                event_ids=event_ids,
+                batch_id=event_batch_id,
+                source=args.source,
+            )
+        return 0
 
     account_output_dir = OUTPUT_DIR / account_num
     account_output_dir.mkdir(parents=True, exist_ok=True)
@@ -326,7 +413,18 @@ def run_single_account(account_raw: str, args: argparse.Namespace) -> int:
     if args.mode == "slack" or (args.mode == "full" and not args.skip_slack):
         if slack_route.channel_id:
             print(format_slack_route(slack_route))
-            run_slack(unified_report, slack_route.channel_id, args.viewer_url)
+            slack_key = build_slack_dedupe_key(slack_route)
+            if slack_send_tracker is not None and slack_key in slack_send_tracker:
+                print("  Slack dedupe: report indexed only; client/channel already received an alert this run.")
+                run_slack_index(unified_report, slack_route.channel_id, args.viewer_url)
+            else:
+                slack_result = run_slack(unified_report, slack_route.channel_id, args.viewer_url)
+                if slack_result.get("slack"):
+                    if slack_send_tracker is not None:
+                        slack_send_tracker.add(slack_key)
+                elif slack_result.get("skippedSlack"):
+                    print("  Slack skipped; indexing report so account dropdown can include it.")
+                    run_slack_index(unified_report, slack_route.channel_id, args.viewer_url)
         else:
             print("  Skipping Slack (no Client sheet Slack Channel ID, --channel, or SLACK_OVERRIDE_CHANNEL_ID set)")
 
@@ -777,6 +875,20 @@ def patch_supabase_rows(url: str, supabase_key: str, payload: dict) -> list:
         return json.loads(body or "[]")
 
 
+def get_supabase_rows(url: str, supabase_key: str) -> list:
+    request = urllib.request.Request(
+        url,
+        method="GET",
+        headers={
+            "apikey": supabase_key,
+            "Authorization": f"Bearer {supabase_key}",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        body = response.read().decode("utf-8")
+        return json.loads(body or "[]")
+
+
 def assert_placement_report_account(placement_report: Path, account: str) -> None:
     if not placement_report.exists():
         raise SystemExit(f"Placement report not found: {placement_report}")
@@ -802,10 +914,10 @@ def assert_placement_report_account(placement_report: Path, account: str) -> Non
         )
 
 
-def run_slack(unified_report: Path, channel: str, viewer_url: str) -> None:
+def run_slack(unified_report: Path, channel: str, viewer_url: str) -> dict:
     if not viewer_url:
         raise SystemExit("Missing --viewer-url or REPORT_VIEWER_URL for Slack send.")
-    run_command(
+    return run_command_json(
         [
             "node",
             "src/send-report-viewer-to-slack.js",
@@ -820,12 +932,54 @@ def run_slack(unified_report: Path, channel: str, viewer_url: str) -> None:
     )
 
 
+def run_slack_index(unified_report: Path, channel: str, viewer_url: str) -> dict:
+    if not viewer_url:
+        raise SystemExit("Missing --viewer-url or REPORT_VIEWER_URL for report index.")
+    return run_command_json(
+        [
+            "node",
+            "src/send-report-viewer-to-slack.js",
+            "--json",
+            str(unified_report),
+            "--channel",
+            channel,
+            "--viewer-url",
+            viewer_url,
+            "--index-only",
+        ],
+        cwd=PROJECT_ROOT,
+    )
+
+
 def run_command(command: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> None:
     printable = " ".join(command)
     print(f"\n$ ({cwd.relative_to(PROJECT_ROOT) if cwd != PROJECT_ROOT else '.'}) {printable}")
     completed = subprocess.run(command, cwd=str(cwd), env=env, check=False)
     if completed.returncode != 0:
         raise SystemExit(completed.returncode)
+
+
+def run_command_json(command: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> dict:
+    printable = " ".join(command)
+    print(f"\n$ ({cwd.relative_to(PROJECT_ROOT) if cwd != PROJECT_ROOT else '.'}) {printable}")
+    completed = subprocess.run(
+        command,
+        cwd=str(cwd),
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if completed.stdout:
+        print(completed.stdout, end="" if completed.stdout.endswith("\n") else "\n")
+    if completed.stderr:
+        print(completed.stderr, end="" if completed.stderr.endswith("\n") else "\n")
+    if completed.returncode != 0:
+        raise SystemExit(completed.returncode)
+    try:
+        return json.loads(completed.stdout.strip() or "{}")
+    except json.JSONDecodeError:
+        return {}
 
 
 if __name__ == "__main__":

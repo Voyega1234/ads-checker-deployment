@@ -105,7 +105,7 @@
       align-items: center;
       gap: 10px;
       min-height: 34px;
-      padding: 0 14px;
+      padding: 4px 8px 4px 14px;
       border-radius: 999px;
       background: #fff;
       border: 1px solid var(--line);
@@ -119,9 +119,28 @@
       font-size: 12px;
       border-radius: 0;
     }
+    .account-select-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 36px;
+      padding: 3px 5px 3px 10px;
+      border: 1px solid rgba(8, 59, 236, .20);
+      border-radius: 10px;
+      background: #F2F6FF;
+      box-shadow: 0 3px 10px rgba(8, 59, 236, .08);
+    }
+    .account-select-label {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
     .account-switcher {
       appearance: none;
-      border: 1px solid rgba(8, 59, 236, .14);
+      border: 0;
       border-radius: 7px;
       background-color: #fff;
       background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1.5 1.5 6 6l4.5-4.5' fill='none' stroke='%23050505' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -129,22 +148,20 @@
       background-repeat: no-repeat;
       background-size: 12px 8px;
       color: var(--text);
-      font: 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font: 700 13px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
       max-width: min(44vw, 300px);
-      min-height: 28px;
+      min-height: 30px;
       padding: 0 32px 0 10px;
       cursor: pointer;
       text-overflow: ellipsis;
       transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
     }
     .account-switcher:hover {
-      border-color: rgba(8, 59, 236, .28);
       background-color: #fff;
     }
     .account-switcher:focus-visible {
       outline: 0;
-      border-color: rgba(8, 59, 236, .38);
-      box-shadow: 0 0 0 3px rgba(8, 59, 236, .12);
+      box-shadow: 0 0 0 3px rgba(8, 59, 236, .14);
     }
     .account-divider {
       width: 1px;
@@ -1460,13 +1477,16 @@
       const reports = appState.accountReports || [];
       const hasSwitcher = reports.length > 1;
       const accountIdControl = hasSwitcher
-        ? `<select class="account-switcher" id="account-switcher" aria-label="Switch ad account report">
-            ${reports.map((item) => {
-              const itemAccountId = normalizeAccountId(item.accountId);
-              const selected = itemAccountId === accountId ? " selected" : "";
-              return `<option value="${escapeAttr(itemAccountId)}"${selected}>${escapeHtml(itemAccountId)}</option>`;
-            }).join("")}
-          </select>`
+        ? `<span class="account-select-wrap">
+            <span class="account-select-label">Ad account</span>
+            <select class="account-switcher" id="account-switcher" aria-label="Switch ad account report">
+              ${reports.map((item) => {
+                const itemAccountId = normalizeAccountId(item.accountId);
+                const selected = itemAccountId === accountId ? " selected" : "";
+                return `<option value="${escapeAttr(itemAccountId)}"${selected}>${escapeHtml(itemAccountId)}</option>`;
+              }).join("")}
+            </select>
+          </span>`
         : `<code>${escapeHtml(accountId)}</code>`;
       els.subhead.innerHTML = `<span class="account-pill"><b>${escapeHtml(clientName)}</b><span class="account-divider"></span>${accountIdControl}</span><span>${escapeHtml(date)}</span>`;
       const switcher = document.querySelector("#account-switcher");
