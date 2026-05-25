@@ -25,6 +25,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -347,6 +348,14 @@ def run_single_account(
             policy_dir=POLICY_DIR,
             fallback_channel=args.channel,
         )
+        override_channel = str(args.channel or "").strip()
+        if override_channel:
+            slack_route = replace(
+                slack_route,
+                channel_id=override_channel,
+                channel_name=override_channel,
+                source="override",
+            )
 
     recent_send = find_recent_slack_send(account, args) if should_check_recent_slack_send(args, slack_route) else None
     if recent_send:

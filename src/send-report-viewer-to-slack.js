@@ -153,7 +153,7 @@ function buildSlackBlocks(meta, reportUrl, buttonStyle, buttonText) {
   const style = normalizeButtonStyle(buttonStyle);
   const button = {
     type: "button",
-    text: { type: "plain_text", text: buttonText || "⎋ View report" },
+    text: { type: "plain_text", text: buttonText || "⎋ Click Here" },
     url: reportUrl
   };
   if (style) button.style = style;
