@@ -1,20 +1,29 @@
 const GRAPH_BASE = "https://graph.facebook.com";
 
+const AD_FIELDS = [
+  "id",
+  "account_id",
+  "name",
+  "creative{id,name,effective_object_story_id,image_hash,image_url,thumbnail_url,object_type,instagram_permalink_url,asset_feed_spec}",
+  "effective_status",
+  "configured_status",
+  "campaign{id,name,effective_status,configured_status}",
+  "adset{id,name,effective_status,configured_status}"
+];
+
 export async function fetchRunnableAds(config, adAccount) {
   assertMetaConfig(config);
+
+  if (config.newAdIds?.length) {
+    return fetchAdsByIds(config, adAccount);
+  }
 
   const insightsField = config.spendDatePreset
     ? `insights.date_preset(${config.spendDatePreset}){spend}`
     : "insights{spend}";
 
   const fields = [
-    "id",
-    "name",
-    "creative{id,name,effective_object_story_id,image_hash,image_url,thumbnail_url,object_type,instagram_permalink_url,asset_feed_spec}",
-    "effective_status",
-    "configured_status",
-    "campaign{id,name,effective_status,configured_status}",
-    "adset{id,name,effective_status,configured_status}",
+    ...AD_FIELDS,
     insightsField
   ].join(",");
 
@@ -56,6 +65,32 @@ export async function fetchRunnableAds(config, adAccount) {
     .slice(0, config.adLimit ?? Infinity);
 }
 
+async function fetchAdsByIds(config, adAccount) {
+  const fields = AD_FIELDS.join(",");
+  const accountNum = normalizeAccountNumber(adAccount.id);
+  const fetched = await Promise.all(
+    config.newAdIds.map(async (adId) => {
+      const params = new URLSearchParams({
+        access_token: config.metaAccessToken,
+        fields
+      });
+      try {
+        return await graphFetch(`${GRAPH_BASE}/${config.metaApiVersion}/${adId}?${params}`, {
+          timeoutMs: config.metaTimeoutMs
+        });
+      } catch (error) {
+        console.warn(`New ad direct fetch skipped for ${adId}: ${error.message}`);
+        return null;
+      }
+    })
+  );
+  const ads = fetched.filter((ad) => ad && normalizeAccountNumber(ad.account_id) === accountNum);
+  const imageUrlsByHash = await resolveAdImageUrlsByHash(config, adAccount.id, ads);
+  return ads
+    .map((ad) => normalizeRunnableAd(ad, imageUrlsByHash))
+    .slice(0, config.adLimit ?? Infinity);
+}
+
 function normalizeRunnableAd(ad, imageUrlsByHash = new Map()) {
   const creative = ad.creative || {};
   const assetImage = firstAssetImage(creative);
@@ -89,6 +124,10 @@ function normalizeRunnableAd(ad, imageUrlsByHash = new Map()) {
     adsetConfiguredStatus: ad.adset?.configured_status || "",
     spend: Number.parseFloat(ad.insights?.data?.[0]?.spend || "0")
   };
+}
+
+function normalizeAccountNumber(value) {
+  return `${value || ""}`.replace(/^act_/, "");
 }
 
 function firstAssetImage(creative) {

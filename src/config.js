@@ -7,6 +7,7 @@ export function loadConfig() {
     metaAccessToken: process.env.META_ACCESS_TOKEN,
     metaAdAccountId: normalizeAdAccountId(process.env.META_AD_ACCOUNT_ID),
     metaAdAccountIds: parseAccountIds(process.env.META_AD_ACCOUNT_IDS),
+    newAdIds: parseIdList(process.env.NEW_AD_IDS || process.env.NEW_AD_ID),
     metaApiVersion: process.env.META_API_VERSION || "v25.0",
     activeClientsCsvUrl: process.env.ACTIVE_CLIENTS_CSV_URL,
     adAccountLimit: parseOptionalInteger(process.env.AD_ACCOUNT_LIMIT),
@@ -87,4 +88,16 @@ function parseAccountIds(value) {
     .split(",")
     .map((entry) => normalizeAdAccountId(entry.trim()))
     .filter(Boolean);
+}
+
+function parseIdList(value) {
+  if (!value) return [];
+  return [
+    ...new Set(
+      String(value)
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+    )
+  ];
 }

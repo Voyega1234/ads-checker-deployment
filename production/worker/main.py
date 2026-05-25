@@ -408,7 +408,7 @@ def run_single_account(
                 run_policy(account, channel=slack_route.channel_id if slack_route else args.channel)
 
     if args.mode in {"placement", "full"}:
-        run_placement(account, account_output_dir)
+        run_placement(account, account_output_dir, new_ad_ids=new_ad_ids)
 
     if args.mode in {"unified", "full"}:
         run_unified(
@@ -764,7 +764,7 @@ def get_hybrid_policy_plan(account: str) -> dict:
         ) from exc
 
 
-def run_placement(account: str, account_output_dir: Path) -> None:
+def run_placement(account: str, account_output_dir: Path, *, new_ad_ids: list[str] | None = None) -> None:
     env = os.environ.copy()
     env["META_AD_ACCOUNT_ID"] = account
     env["ACTIVE_CLIENTS_CSV_URL"] = ""
@@ -772,6 +772,8 @@ def run_placement(account: str, account_output_dir: Path) -> None:
     env["OUTPUT_DIR"] = str(account_output_dir)
     env.setdefault("AD_LIMIT", "all")
     env.setdefault("MIN_SPEND", "0")
+    if new_ad_ids:
+        env["NEW_AD_IDS"] = ",".join(new_ad_ids)
     run_command(["node", "src/index.js", "--json-summary"], cwd=PROJECT_ROOT, env=env)
 
 
