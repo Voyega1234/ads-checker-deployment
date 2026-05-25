@@ -50,6 +50,11 @@ def main() -> int:
     submit = sub.add_parser("submit", help="Create a policy-check batch job from one account.")
     submit.add_argument("--client-id", required=True)
     submit.add_argument("--account", required=True, help="act_<id> or numeric ad account id")
+    submit.add_argument(
+        "--new-ad-ids",
+        default="",
+        help="Comma-separated ad IDs from webhook/in-process events. Fetches these ads without ACTIVE filtering.",
+    )
     submit.add_argument("--limit", type=int, default=0, help="Limit Gemini groups for a small test batch.")
     submit.add_argument("--out-dir", default=str(DEFAULT_OUT_DIR))
     submit.add_argument("--dry-run", action="store_true", help="Build JSONL/state without uploading/submitting.")
@@ -91,7 +96,15 @@ def submit_batch(args: argparse.Namespace) -> int:
 
     print(f"batch_policy_submit_start client_id={args.client_id} account={account_act} run_id={run_id}")
     snapshot_before = supabase_db_helper.fetch_meta_check_db_snapshot(args.client_id, account_num)
-    fetched = verification_flow.fetch_ads_for_client(args.client_id, [account_act], verification_flow._token())
+    new_ad_ids = parse_csv_values(args.new_ad_ids)
+    if new_ad_ids:
+        print(f"batch_policy_new_ad_ids count={len(new_ad_ids)} active_filter=false")
+    fetched = verification_flow.fetch_ads_for_client(
+        args.client_id,
+        [account_act],
+        verification_flow._token(),
+        new_ad_ids=new_ad_ids,
+    )
     snapshot_after = verification_flow.sync_fetched_ads_to_db(
         snapshot_before,
         fetched,
@@ -595,6 +608,17 @@ def normalize_act_id(value: str) -> str:
     if not raw:
         raise ValueError("Missing account id")
     return raw if raw.startswith("act_") else f"act_{raw}"
+
+
+def parse_csv_values(value: str) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in str(value or "").split(","):
+        clean = item.strip()
+        if clean and clean not in seen:
+            seen.add(clean)
+            out.append(clean)
+    return out
 
 
 def require_env(name: str) -> str:

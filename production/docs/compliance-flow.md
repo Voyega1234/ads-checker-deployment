@@ -125,7 +125,10 @@ For one account in `--mode full`:
 1. Resolve Slack route from Client sheet.
 2. Policy smart-skip preflight.
 3. Run policy/spelling checks only when active ad content changed or webhook new ad IDs exist.
-4. Run placement preview checks.
+   Webhook new-ad runs fetch the explicit ad IDs without the ACTIVE filter, because
+   in-process ads are normally `PENDING_REVIEW`.
+4. Run placement preview checks. Webhook new-ad runs also fetch explicit ad IDs
+   without the active/spend filters.
 5. Build unified report JSON.
 6. Send unified Slack alert.
 7. Optionally mark webhook status events as processed.
@@ -424,7 +427,7 @@ process_error
 ```
 
 N8N should group pending events for a short debounce window, then call the API
-once per ad account with arrays:
+with arrays. For one account:
 
 ```json
 {
@@ -442,6 +445,12 @@ once per ad account with arrays:
 ```
 
 `newAdIds` and `eventIds` must be JSON arrays, not raw strings without quotes.
+
+For multiple accounts in one debounce window, prefer one API request with
+`accountIds` and flat `newAdIds` / `eventIds` arrays. The worker runs accounts
+sequentially, and each account fetches only matching ad IDs from its own account
+edge. This avoids concurrent API-trigger conflicts while still batching the
+webhook events.
 
 The worker marks matching `meta_ad_status_events` as processed after the run if:
 

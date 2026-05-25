@@ -422,6 +422,11 @@ function policyRiskLabel(normalized) {
   if (red.length) return "High Risk";
   if (yellow.length) return "Some Risk";
   const verdict = `${normalized.verdict || ""}`.trim().toLowerCase();
+  const policyV2Overall = `${normalized.policy_v2?.caption_analysis?.overall_result || normalized.policy_v2?.overall_result || ""}`
+    .trim()
+    .toLowerCase();
+  const policyV2Issues = getPolicyV2Issues(normalized.policy_v2);
+  if (verdict === "fail" || policyV2Overall === "fail" || policyV2Issues.length) return "High Risk";
   if (!verdict || ["pass", "ok", "low risk", "no risk"].includes(verdict)) return "Low Risk";
   if (verdict.includes("high risk") || verdict.startsWith("high ")) return "High Risk";
   if (verdict.includes("some") || verdict.includes("yellow") || verdict.includes("medium")) {
@@ -946,9 +951,7 @@ function buildStructuredDetails(group) {
   );
   const policyV2Issues = uniqueBy(
     group.policyRows.flatMap((policy) => {
-      const analysis = policy.normalized?.policy_v2 || {};
-      const issues = Array.isArray(analysis.issues) ? analysis.issues : [];
-      return issues.filter((issue) => issue && typeof issue === "object");
+      return getPolicyV2Issues(policy.normalized?.policy_v2);
     }),
     (issue) => [
       issue.rule_id || "",
@@ -994,6 +997,12 @@ function buildStructuredDetails(group) {
       formats: group.placement.formats
     }
   };
+}
+
+function getPolicyV2Issues(policyV2) {
+  if (!policyV2 || typeof policyV2 !== "object") return [];
+  const issues = policyV2.caption_analysis?.issues || policyV2.issues || [];
+  return Array.isArray(issues) ? issues.filter((issue) => issue && typeof issue === "object") : [];
 }
 
 function formatSpellFix(error) {

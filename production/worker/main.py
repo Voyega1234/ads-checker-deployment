@@ -392,7 +392,10 @@ def run_single_account(
             print("  Policy smart skip: active ad content unchanged and no webhook new ad IDs.")
         else:
             policy_runner = args.policy_runner
-            if policy_runner == "hybrid":
+            if new_ad_ids and policy_runner != "batch":
+                policy_runner = "batch"
+                print("  Webhook new ad IDs detected; using batch policy fetch-by-id (no ACTIVE filter).")
+            elif policy_runner == "hybrid":
                 policy_runner = choose_hybrid_policy_runner(account, args)
             if policy_runner == "batch":
                 if not client_id:
@@ -403,6 +406,7 @@ def run_single_account(
                     poll_interval=args.batch_poll_interval,
                     timeout=args.batch_timeout,
                     force_recheck=args.batch_force_recheck,
+                    new_ad_ids=new_ad_ids,
                 )
             else:
                 run_policy(account, channel=slack_route.channel_id if slack_route else args.channel)
@@ -580,6 +584,7 @@ def run_policy_batch(
     poll_interval: int,
     timeout: int,
     force_recheck: bool,
+    new_ad_ids: list[str] | None = None,
 ) -> None:
     command = [
         str(_policy_python()),
@@ -595,6 +600,8 @@ def run_policy_batch(
         "--timeout",
         str(max(1, int(timeout))),
     ]
+    if new_ad_ids:
+        command.extend(["--new-ad-ids", ",".join(new_ad_ids)])
     if force_recheck:
         command.append("--force-recheck")
     run_command(command, cwd=POLICY_DIR)
@@ -785,6 +792,26 @@ def run_unified(
     source: str = "",
     new_ad_ids: list[str] | None = None,
 ) -> None:
+    if not placement_report.exists():
+        print(f"  Placement report missing; building policy-only unified report: {placement_report}")
+        placement_report.parent.mkdir(parents=True, exist_ok=True)
+        placement_report.write_text(
+            json.dumps(
+                {
+                    "generatedAt": datetime.now(timezone.utc).isoformat(),
+                    "results": [],
+                    "accountAlerts": [],
+                    "stats": {
+                        "totalAds": 0,
+                        "totalChecks": 0,
+                        "placementsPerAd": 0,
+                    },
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
     assert_placement_report_account(placement_report, account)
     command = [
         "node",

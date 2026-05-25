@@ -170,6 +170,76 @@ def get_active_ads_with_creatives(
     return out
 
 
+def get_ads_with_creatives_by_ids(
+    access_token: str | None = None,
+    account_id: str = "",
+    ad_ids: list[str] | None = None,
+    page_limit: int = 100,
+) -> list[dict]:
+    """
+    Fetch explicit ad IDs without ACTIVE filtering. This is for webhook/new-ad
+    flows where Meta may still report PENDING_REVIEW or in-process objects.
+    """
+    token = access_token or _token()
+    act = account_id if account_id.startswith("act_") else f"act_{account_id}"
+    wanted = [str(ad_id).strip() for ad_id in (ad_ids or []) if str(ad_id).strip()]
+    if not wanted:
+        return []
+
+    out_by_id: dict[str, dict] = {}
+    for filter_field in ("ad.id", "id"):
+        for batch in _chunks(wanted, 50):
+            path = f"{act}/ads"
+            params = {
+                "fields": _ADS_WITH_CREATIVES_FIELDS,
+                "filtering": json_dumps([
+                    {
+                        "field": filter_field,
+                        "operator": "IN",
+                        "value": batch,
+                    }
+                ]),
+                "limit": min(page_limit, 100),
+            }
+            try:
+                while path:
+                    data = _get(token, path, params)
+                    for ad in data.get("data", []):
+                        ad_id = str(ad.get("id") or "")
+                        if ad_id in wanted:
+                            out_by_id[ad_id] = ad
+                    paging = data.get("paging", {})
+                    path = paging.get("next", "") or ""
+                    params = None
+            except Exception as exc:
+                print(f"new_ad_account_edge_fetch_skipped field={filter_field} error={exc}")
+                break
+
+    missing = [ad_id for ad_id in wanted if ad_id not in out_by_id]
+    account_num = act.replace("act_", "")
+    for ad_id in missing:
+        try:
+            ad = _get(token, ad_id, {"fields": _ADS_WITH_CREATIVES_FIELDS + ",account_id"})
+            ad_account_num = str(ad.get("account_id") or "").replace("act_", "")
+            if str(ad.get("id") or "") == ad_id and ad_account_num == account_num:
+                out_by_id[ad_id] = ad
+        except Exception as exc:
+            print(f"new_ad_direct_fetch_skipped ad_id={ad_id} error={exc}")
+
+    return [out_by_id[ad_id] for ad_id in wanted if ad_id in out_by_id]
+
+
+def _chunks(items: list[str], size: int):
+    for index in range(0, len(items), size):
+        yield items[index : index + size]
+
+
+def json_dumps(value) -> str:
+    import json
+
+    return json.dumps(value, ensure_ascii=False)
+
+
 # --- 3: Creative detail ---
 
 def get_creative(access_token: str | None = None, creative_id: str = "") -> dict:

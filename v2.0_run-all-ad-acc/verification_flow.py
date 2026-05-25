@@ -48,10 +48,12 @@ def _token() -> str:
 
 
 def fetch_ads_for_client(
-    client_id: str, account_ids: list[str], access_token: str
+    client_id: str, account_ids: list[str], access_token: str, new_ad_ids: list[str] | None = None
 ) -> list[tuple[dict[str, Any], dict, dict]]:
     """
-    Active ads with embedded creatives (id, name, body on nested creative).
+    Ads with embedded creatives (id, name, body on nested creative).
+    Scheduled runs fetch active ads. Webhook/new-ad runs fetch explicit IDs
+    without ACTIVE filtering because in-process ads are usually PENDING_REVIEW.
     Returns list of (normalized map, ad dict, creative dict).
     """
     out: list[tuple[dict[str, Any], dict, dict]] = []
@@ -59,8 +61,17 @@ def fetch_ads_for_client(
     total_ads = 0
     for account_id in account_ids:
         account_started = time.time()
-        creative_utils.print_log(f"meta_fetch_start account_id={account_id}")
-        ads = meta_api.get_active_ads_with_creatives(access_token=access_token, account_id=account_id)
+        fetch_mode = "new_ad_ids" if new_ad_ids else "active"
+        creative_utils.print_log(f"meta_fetch_start account_id={account_id} mode={fetch_mode}")
+        ads = (
+            meta_api.get_ads_with_creatives_by_ids(
+                access_token=access_token,
+                account_id=account_id,
+                ad_ids=new_ad_ids,
+            )
+            if new_ad_ids
+            else meta_api.get_active_ads_with_creatives(access_token=access_token, account_id=account_id)
+        )
         creative_utils.print_log(
             f"meta_fetch_done account_id={account_id} fetched={len(ads)} elapsed_sec={time.time() - account_started:.2f}"
         )

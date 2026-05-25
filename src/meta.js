@@ -68,27 +68,77 @@ export async function fetchRunnableAds(config, adAccount) {
 async function fetchAdsByIds(config, adAccount) {
   const fields = AD_FIELDS.join(",");
   const accountNum = normalizeAccountNumber(adAccount.id);
-  const fetched = await Promise.all(
-    config.newAdIds.map(async (adId) => {
-      const params = new URLSearchParams({
-        access_token: config.metaAccessToken,
-        fields
-      });
-      try {
-        return await graphFetch(`${GRAPH_BASE}/${config.metaApiVersion}/${adId}?${params}`, {
-          timeoutMs: config.metaTimeoutMs
-        });
-      } catch (error) {
-        console.warn(`New ad direct fetch skipped for ${adId}: ${error.message}`);
-        return null;
-      }
-    })
+  const wantedIds = new Set(config.newAdIds.map((id) => `${id}`));
+  const accountEdgeAds =
+    (await fetchAdsByIdsFromAccountEdge(config, adAccount, fields, config.newAdIds, "ad.id")) ||
+    (await fetchAdsByIdsFromAccountEdge(config, adAccount, fields, config.newAdIds, "id")) ||
+    [];
+  const adsById = new Map(
+    accountEdgeAds
+      .filter((ad) => ad && wantedIds.has(`${ad.id}`) && normalizeAccountNumber(ad.account_id) === accountNum)
+      .map((ad) => [`${ad.id}`, ad])
   );
-  const ads = fetched.filter((ad) => ad && normalizeAccountNumber(ad.account_id) === accountNum);
+  const missingIds = config.newAdIds.filter((adId) => !adsById.has(`${adId}`));
+
+  if (missingIds.length) {
+    const directAds = await Promise.all(
+      missingIds.map(async (adId) => {
+        const params = new URLSearchParams({
+          access_token: config.metaAccessToken,
+          fields
+        });
+        try {
+          return await graphFetch(`${GRAPH_BASE}/${config.metaApiVersion}/${adId}?${params}`, {
+            timeoutMs: config.metaTimeoutMs
+          });
+        } catch (error) {
+          console.warn(`New ad direct fetch skipped for ${adId}: ${error.message}`);
+          return null;
+        }
+      })
+    );
+    for (const ad of directAds) {
+      if (ad && wantedIds.has(`${ad.id}`) && normalizeAccountNumber(ad.account_id) === accountNum) {
+        adsById.set(`${ad.id}`, ad);
+      }
+    }
+  }
+
+  const ads = [...adsById.values()];
   const imageUrlsByHash = await resolveAdImageUrlsByHash(config, adAccount.id, ads);
   return ads
     .map((ad) => normalizeRunnableAd(ad, imageUrlsByHash))
     .slice(0, config.adLimit ?? Infinity);
+}
+
+async function fetchAdsByIdsFromAccountEdge(config, adAccount, fields, adIds, filterField) {
+  const ads = [];
+  for (const batch of chunkItems(adIds, 50)) {
+    const params = new URLSearchParams({
+      access_token: config.metaAccessToken,
+      fields,
+      limit: "100",
+      filtering: JSON.stringify([
+        {
+          field: filterField,
+          operator: "IN",
+          value: batch
+        }
+      ])
+    });
+    let url = `${GRAPH_BASE}/${config.metaApiVersion}/${adAccount.id}/ads?${params}`;
+    try {
+      while (url) {
+        const payload = await graphFetch(url, { timeoutMs: config.metaTimeoutMs });
+        ads.push(...(payload.data || []));
+        url = payload.paging?.next;
+      }
+    } catch (error) {
+      console.warn(`New ad account-edge fetch skipped (${filterField}): ${error.message}`);
+      return null;
+    }
+  }
+  return ads;
 }
 
 function normalizeRunnableAd(ad, imageUrlsByHash = new Map()) {
@@ -128,6 +178,14 @@ function normalizeRunnableAd(ad, imageUrlsByHash = new Map()) {
 
 function normalizeAccountNumber(value) {
   return `${value || ""}`.replace(/^act_/, "");
+}
+
+function chunkItems(items, size) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
 }
 
 function firstAssetImage(creative) {
