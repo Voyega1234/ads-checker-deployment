@@ -6,6 +6,7 @@ import { postSlackMessage, sleep } from "./slack.js";
 
 const ACTIONABLE_PLACEMENT_RISKS = new Set(["high", "medium"]);
 const DEFAULT_REPORT_PATH = "/tmp/ad-preview-checker-act-1959218444986377-20260427-nofilters/report-latest.json";
+const DEFAULT_DISPLAY_IGNORED_POLICY_RULE_IDS = ["4de527eb-b5db-4c12-9eb2-7b9e7e3f89d2"];
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
@@ -22,13 +23,15 @@ async function main() {
     fetchPolicyRows(account.numericId),
     fetchAccountInfo(account.numericId)
   ]);
+  const scopedPolicyRows = scopePolicyRowsToAdIds(policyRows, newAdIds);
+  const scopedPlacementResults = scopePlacementResultsToAdIds(placementResults, newAdIds);
   if (accountInfo?.accountName) account.name = accountInfo.accountName;
-  const metaAdByAdId = await fetchMetaAdMetaByAdId(collectAdIds(policyRows, placementResults));
+  const metaAdByAdId = await fetchMetaAdMetaByAdId(collectAdIds(scopedPolicyRows, scopedPlacementResults));
   const alert = await buildUnifiedAlert({
     account,
     generatedAt: placementReport.generatedAt || new Date().toISOString(),
-    placementResults,
-    policyRows,
+    placementResults: scopedPlacementResults,
+    policyRows: scopedPolicyRows,
     metaAdByAdId,
     source,
     newAdIds
@@ -378,6 +381,18 @@ function collectAdIds(policyRows, placementResults) {
   ].filter(Boolean));
 }
 
+function scopePolicyRowsToAdIds(policyRows, adIds) {
+  const wanted = new Set((adIds || []).map((id) => `${id}`.trim()).filter(Boolean));
+  if (!wanted.size) return policyRows || [];
+  return (policyRows || []).filter((row) => wanted.has(`${row.ad_id || ""}`.trim()));
+}
+
+function scopePlacementResultsToAdIds(placementResults, adIds) {
+  const wanted = new Set((adIds || []).map((id) => `${id}`.trim()).filter(Boolean));
+  if (!wanted.size) return placementResults || [];
+  return (placementResults || []).filter((result) => wanted.has(`${result.ad?.id || ""}`.trim()));
+}
+
 function buildPolicyByAdId(rows) {
   const map = new Map();
   for (const row of rows || []) {
@@ -416,17 +431,16 @@ function extractNormalized(value) {
 }
 
 function policyRiskLabel(normalized) {
+  if (normalized.policy_v2 && typeof normalized.policy_v2 === "object") {
+    return getPolicyV2Issues(normalized.policy_v2).length ? "High Risk" : "Low Risk";
+  }
   const matches = normalized.matches && typeof normalized.matches === "object" ? normalized.matches : {};
   const red = Array.isArray(matches.red) ? matches.red.filter(Boolean) : [];
   const yellow = Array.isArray(matches.yellow) ? matches.yellow.filter(Boolean) : [];
   if (red.length) return "High Risk";
   if (yellow.length) return "Some Risk";
   const verdict = `${normalized.verdict || ""}`.trim().toLowerCase();
-  const policyV2Overall = `${normalized.policy_v2?.caption_analysis?.overall_result || normalized.policy_v2?.overall_result || ""}`
-    .trim()
-    .toLowerCase();
-  const policyV2Issues = getPolicyV2Issues(normalized.policy_v2);
-  if (verdict === "fail" || policyV2Overall === "fail" || policyV2Issues.length) return "High Risk";
+  if (verdict === "fail") return "High Risk";
   if (!verdict || ["pass", "ok", "low risk", "no risk"].includes(verdict)) return "Low Risk";
   if (verdict.includes("high risk") || verdict.startsWith("high ")) return "High Risk";
   if (verdict.includes("some") || verdict.includes("yellow") || verdict.includes("medium")) {
@@ -449,6 +463,21 @@ function extractRevisedText(normalized) {
 }
 
 function extractPolicyFlags(normalized) {
+  if (normalized.policy_v2 && typeof normalized.policy_v2 === "object") {
+    const policyV2Issues = getPolicyV2Issues(normalized.policy_v2);
+    return unique(
+      policyV2Issues
+        .map((issue) =>
+          issue.flagged_text ||
+          issue.issue_title ||
+          issue.short_title ||
+          issue.category ||
+          issue.rule_id ||
+          ""
+        )
+        .filter(Boolean)
+    );
+  }
   const matches = normalized.matches && typeof normalized.matches === "object" ? normalized.matches : {};
   return unique([...(matches.red || []), ...(matches.yellow || [])].filter(Boolean));
 }
@@ -930,6 +959,11 @@ function buildStatusValues(group, placementIssueAdCount) {
 function buildStructuredDetails(group) {
   const matches = group.policyRows.reduce(
     (acc, policy) => {
+      const policyV2Flags = extractPolicyFlags(policy.normalized || {});
+      if (policy.normalized?.policy_v2 && typeof policy.normalized.policy_v2 === "object") {
+        acc.red.push(...policyV2Flags);
+        return acc;
+      }
       const rowMatches = policy.normalized.matches || {};
       acc.red.push(...(Array.isArray(rowMatches.red) ? rowMatches.red.filter(Boolean) : []));
       acc.yellow.push(...(Array.isArray(rowMatches.yellow) ? rowMatches.yellow.filter(Boolean) : []));
@@ -940,6 +974,10 @@ function buildStructuredDetails(group) {
   const fixNotes = unique(
     group.policyRows.flatMap((policy) => {
       const normalized = policy.normalized || {};
+      const policyV2IssueNotes = getPolicyV2Issues(normalized.policy_v2)
+        .map((issue) => issue.fix_note || issue.issue_detail || "")
+        .filter(Boolean);
+      if (normalized.policy_v2 && typeof normalized.policy_v2 === "object") return policyV2IssueNotes;
       const notes =
         normalized.fix_notes ||
         normalized.fixNotes ||
@@ -999,10 +1037,33 @@ function buildStructuredDetails(group) {
   };
 }
 
-function getPolicyV2Issues(policyV2) {
+function getPolicyV2Issues(policyV2, options = {}) {
   if (!policyV2 || typeof policyV2 !== "object") return [];
+  const includeIgnored = Boolean(options.includeIgnored);
+  const onlyFail = options.onlyFail !== false;
   const issues = policyV2.caption_analysis?.issues || policyV2.issues || [];
-  return Array.isArray(issues) ? issues.filter((issue) => issue && typeof issue === "object") : [];
+  if (!Array.isArray(issues)) return [];
+  return issues.filter((issue) => {
+    if (!issue || typeof issue !== "object") return false;
+    const verdict = `${issue.verdict || ""}`.trim().toLowerCase();
+    if (onlyFail && verdict && verdict !== "fail") return false;
+    if (!includeIgnored && isDisplayIgnoredPolicyIssue(issue)) return false;
+    return true;
+  });
+}
+
+function isDisplayIgnoredPolicyIssue(issue) {
+  const ruleId = normalizePolicyRuleId(issue?.rule_id);
+  return ruleId && getDisplayIgnoredPolicyRuleIds().has(ruleId);
+}
+
+function getDisplayIgnoredPolicyRuleIds() {
+  const configured = parseCsv(process.env.POLICY_DISPLAY_IGNORED_RULE_IDS || "");
+  return new Set([...DEFAULT_DISPLAY_IGNORED_POLICY_RULE_IDS, ...configured].map(normalizePolicyRuleId).filter(Boolean));
+}
+
+function normalizePolicyRuleId(value) {
+  return `${value || ""}`.trim().toLowerCase();
 }
 
 function formatSpellFix(error) {
@@ -1021,7 +1082,10 @@ function buildContextLine(group) {
   const parts = [];
   const policyFlags = unique(
     group.policyRows.flatMap((policy) => {
-      const matches = policy.normalized.matches || {};
+      const normalized = policy.normalized || {};
+      const v2Flags = extractPolicyFlags(normalized);
+      if (normalized.policy_v2 && typeof normalized.policy_v2 === "object") return v2Flags;
+      const matches = normalized.matches || {};
       return [...(matches.red || []), ...(matches.yellow || [])].filter(Boolean);
     })
   );

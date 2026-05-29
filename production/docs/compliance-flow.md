@@ -277,6 +277,21 @@ metadata such as `retrieval`, `match_source`, `similarity`, and
 because the structured response schema uses it to trace findings back to the
 source rule.
 
+## Policy Display Filters
+
+Raw Gemini policy results are kept in `meta_ad_check_db.ad_text_assessment_result`
+unchanged for audit/debugging. The unified report builder can hide selected
+policy rule IDs only at display time:
+
+```text
+POLICY_DISPLAY_IGNORED_RULE_IDS=4de527eb-b5db-4c12-9eb2-7b9e7e3f89d2
+```
+
+Rule `4de527eb-b5db-4c12-9eb2-7b9e7e3f89d2` is ignored by default in Slack/report
+output. If a policy result only fails because of ignored rule IDs, it is shown
+as pass/no action. If other fail issues remain, the report still shows fail with
+the remaining issues.
+
 Manual test:
 
 ```bash
