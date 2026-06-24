@@ -9,6 +9,30 @@ const DEFAULT_VIEWER_URL = "https://report-viewer-theta.vercel.app/report-viewer
 const VALID_MODES = new Set(["policy", "placement", "unified", "slack", "full"]);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, "../..");
+const TEST_PAYLOADS = {
+  "grand-home-mart": {
+    accountId: "act_1339249233597402",
+    source: "webhook-test",
+    policyRunner: "batch",
+    newAdIds: [
+      "120248982889140745",
+      "120248983038490745",
+      "120248983313860745",
+      "120248983418530745",
+      "120248983987350745"
+    ]
+  },
+  "recovery-me": {
+    accountId: "act_1959218444986377",
+    source: "webhook-test",
+    policyRunner: "batch",
+    newAdIds: [
+      "120243917844420400",
+      "120244435375500400",
+      "120244435728610400"
+    ]
+  }
+};
 
 const config = {
   runner: (process.env.TRIGGER_RUNNER || "cloud-run").trim().toLowerCase(),
@@ -22,8 +46,10 @@ const config = {
   jobResourceName: process.env.CLOUD_RUN_JOB_RESOURCE || "",
   defaultChannel: process.env.SLACK_OVERRIDE_CHANNEL_ID || "",
   defaultViewerUrl: process.env.REPORT_VIEWER_URL || DEFAULT_VIEWER_URL,
+  defaultSlackFormat: (process.env.SLACK_ALERT_FORMAT || "catalog").trim().toLowerCase(),
   triggerToken: process.env.RUN_TRIGGER_TOKEN || "",
-  allowUnauthenticated: process.env.ALLOW_UNAUTHENTICATED_TRIGGER === "1"
+  allowUnauthenticated: process.env.ALLOW_UNAUTHENTICATED_TRIGGER === "1",
+  requireNewAdIds: process.env.REQUIRE_NEW_AD_IDS !== "0"
 };
 
 const server = http.createServer(async (request, response) => {
@@ -56,7 +82,8 @@ async function route(request, response) {
 
   if (request.method === "POST" && url.pathname === "/runs") {
     requireTriggerAuth(request);
-    const body = await readJson(request);
+    const body = applyTestPayload(await readJson(request));
+    validateTriggerBody(body);
     const args = buildWorkerArgs(body);
     const dryRun = body.dryRun === true;
     if (dryRun) {
@@ -79,6 +106,31 @@ async function route(request, response) {
   }
 
   sendJson(response, 404, { ok: false, error: "not_found" });
+}
+
+function applyTestPayload(body) {
+  const testCase = String(body.testCase || body.test_case || "").trim().toLowerCase();
+  if (!testCase) return body;
+  const payload = TEST_PAYLOADS[testCase];
+  if (!payload) throw httpError(400, `unknown testCase: ${testCase}`);
+  return {
+    ...payload,
+    ...body,
+    testCase
+  };
+}
+
+function validateTriggerBody(body) {
+  if (!config.requireNewAdIds) return;
+  if (body.allowFullAccountRun === true || body.allow_full_account_run === true) return;
+
+  const newAdIds = normalizeIdList(body.newAdIds || body.new_ad_ids || []);
+  if (newAdIds.length) return;
+
+  throw httpError(
+    400,
+    "newAdIds is required. This trigger is new-ad-only by default; pass allowFullAccountRun=true for manual/admin full-account runs."
+  );
 }
 
 function requireTriggerAuth(request) {
@@ -134,10 +186,32 @@ function buildWorkerArgs(body) {
   const viewerUrl = String(body.viewerUrl || config.defaultViewerUrl || "").trim();
   if (viewerUrl) args.push("--viewer-url", viewerUrl);
 
+  const slackFormat = String(body.slackFormat || body.slack_format || config.defaultSlackFormat).trim().toLowerCase();
+  if (!["viewer", "catalog"].includes(slackFormat)) throw httpError(400, `invalid slackFormat: ${slackFormat}`);
+  args.push("--slack-format", slackFormat);
+  if (body.catalogCacheImages === true || body.catalog_cache_images === true) {
+    args.push("--catalog-cache-images");
+  }
+  if (body.catalogFitImages === true || body.catalog_fit_images === true) {
+    args.push("--catalog-fit-images");
+  }
+  if (body.catalogMaxCards !== undefined || body.catalog_max_cards !== undefined) {
+    const maxCards = Number(body.catalogMaxCards ?? body.catalog_max_cards);
+    if (!Number.isInteger(maxCards) || maxCards <= 0) {
+      throw httpError(400, "catalogMaxCards must be a positive integer");
+    }
+    args.push("--catalog-max-cards", String(maxCards));
+  }
+
   const policyRunner = String(body.policyRunner || body.policy_runner || "").trim().toLowerCase();
   if (policyRunner) {
     if (!["legacy", "batch", "hybrid"].includes(policyRunner)) throw httpError(400, `invalid policyRunner: ${policyRunner}`);
     args.push("--policy-runner", policyRunner);
+  }
+  const policyEngine = String(body.policyEngine || body.policy_engine || "").trim().toLowerCase();
+  if (policyEngine) {
+    if (!["legacy", "macmini"].includes(policyEngine)) throw httpError(400, `invalid policyEngine: ${policyEngine}`);
+    args.push("--policy-engine", policyEngine);
   }
   if (body.batchPolicyPollInterval !== undefined || body.batchPollInterval !== undefined) {
     const pollInterval = Number(body.batchPolicyPollInterval ?? body.batchPollInterval);

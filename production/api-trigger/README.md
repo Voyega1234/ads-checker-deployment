@@ -1,10 +1,15 @@
 # API Trigger
 
-Small HTTP service for manually triggering the ad compliance worker.
+Small HTTP service for triggering the ad compliance worker.
 
 This service does not run policy, placement, Gemini, Meta, or Slack work inside
 the HTTP request. It validates the request, starts a background run, then returns
 immediately.
+
+The trigger is new-ad-only by default. Production n8n calls must pass `newAdIds`
+from `meta_ad_status_events`; requests without `newAdIds` are rejected so the
+worker does not rerun old ads and spam Slack. Manual/admin full-account runs are
+still possible by passing `allowFullAccountRun: true`.
 
 It supports two runners:
 
@@ -25,6 +30,7 @@ Authorization: Bearer $RUN_TRIGGER_TOKEN
 {
   "accountId": "act_1959218444986377",
   "mode": "full",
+  "newAdIds": ["120243898233580277"],
   "channel": "C08EA0XE2UU"
 }
 ```
@@ -35,20 +41,83 @@ Dry-run the generated worker args without triggering the job:
 {
   "accountId": "act_1959218444986377",
   "mode": "full",
+  "newAdIds": ["120243898233580277"],
   "channel": "C08EA0XE2UU",
   "dryRun": true
 }
 ```
 
-Run all active accounts:
+Manual/admin full-account run:
 
 ```json
 {
   "allAccounts": true,
   "mode": "full",
   "policyRunner": "hybrid",
-  "accountDelay": 5
+  "accountDelay": 5,
+  "allowFullAccountRun": true
 }
+```
+
+Webhook/new-ad body from n8n:
+
+```json
+{
+  "accountId": "act_1047165889391141",
+  "mode": "full",
+  "policyRunner": "batch",
+  "source": "webhook",
+  "newAdIds": ["120243898233580277", "120243908503730277"],
+  "eventIds": ["a1012c92-38ad-47a7-870d-a6f907ad31fa"],
+  "slackFormat": "catalog",
+  "markEventsProcessed": true,
+  "batchPolicyPollInterval": 60,
+  "batchPolicyTimeout": 7200
+}
+```
+
+The default Slack format is `"catalog"`, the carousel/card Slack sender. The
+API passes `--slack-format catalog` to the worker even when the request body
+omits `slackFormat`. Set `"slackFormat": "viewer"` only when you need the old
+report-link message. Catalog cards include the `Details` and `Ignore rule`
+buttons by default.
+Catalog cards use placement screenshots when available and fall back to the ad
+creative thumbnail for policy/spelling-only issues. Catalog images are fitted
+onto a white canvas and uploaded to Supabase by default so Slack does not crop
+the creative. You can make this explicit in request bodies with:
+
+```json
+{
+  "slackFormat": "catalog",
+  "catalogCacheImages": true,
+  "catalogFitImages": true,
+  "catalogMaxCards": 10
+}
+```
+
+The worker limits successful Slack runs to one per ad account within the
+configured recent window (24 hours by default). If a webhook arrives during
+that window, its `meta_ad_status_events` rows remain pending so a later n8n
+poll can submit the accumulated ad/event IDs after the account becomes
+eligible again.
+
+Reusable test payloads are available so n8n can test the new-ad path without
+waiting for fresh Meta webhook events:
+
+```json
+{
+  "testCase": "grand-home-mart",
+  "mode": "full",
+  "channel": "C0B1ZT7S1HV",
+  "dryRun": true
+}
+```
+
+Available `testCase` values:
+
+```text
+grand-home-mart
+recovery-me
 ```
 
 ## Required Env
@@ -76,16 +145,16 @@ Trigger one account:
 curl -X POST http://127.0.0.1:8080/runs \
   -H "Authorization: Bearer <secret>" \
   -H "Content-Type: application/json" \
-  -d '{"accountId":"act_1177861947760094","mode":"full"}'
+  -d '{"accountId":"act_1177861947760094","mode":"full","newAdIds":["120243898233580277"]}'
 ```
 
-Trigger all routed accounts:
+Trigger all routed accounts for manual/admin testing:
 
 ```bash
 curl -X POST http://127.0.0.1:8080/runs \
   -H "Authorization: Bearer <secret>" \
   -H "Content-Type: application/json" \
-  -d '{"allAccounts":true,"mode":"full","accountDelay":5}'
+  -d '{"allAccounts":true,"mode":"full","accountDelay":5,"allowFullAccountRun":true}'
 ```
 
 Local runner logs default to:
@@ -160,6 +229,22 @@ Body for all routed accounts:
 `policyRunner` supports `hybrid`, `legacy`, and `batch`. `hybrid` is the worker
 default and chooses batch for larger accounts based on active ad count and
 unique ad-text group count.
+
+`policyEngine` selects the implementation independently:
+
+- `legacy` (default): use `v2.0_run-all-ad-acc`
+- `macmini`: enqueue unique captions in `macmini_worker_jobs` and wait for the
+  `mac_mini_worker/worker_slack.py` queue consumer
+
+```json
+{
+  "accountId": "act_3820001441548201",
+  "mode": "full",
+  "policyEngine": "macmini",
+  "source": "webhook",
+  "newAdIds": ["120000000000000001"]
+}
+```
 
 For Cloud Run:
 

@@ -1,0 +1,75 @@
+FIELD GUIDANCE
+
+summary.display_title:
+
+* pass -> short reassuring Thai line
+* fail -> short line saying what type of issue was found
+
+summary.display_subtitle:
+
+* mention spell and policy counts briefly
+
+summary.executive_summary:
+
+* 1-2 short sentences
+* explain whether the message passed, had spelling issues, policy failures, or both
+
+spell_check:
+
+* include only clear spelling or wording issues
+* do not include slang, brand names, stylistic spelling, or uncertain cases
+* clear spelling/wording fixes flow into revised_message, not a separate field
+
+policy_context:
+
+* use for reviewer guidance only
+* include operational cautions, possible approval/disclosure checks, or context notes
+* do not treat policy_context as a fail list
+
+policy_check:
+
+* include only concrete policy failures
+* each item must be supported by an applicable RULES_BLOCK rule
+* do not include spelling issues, advice, uncertainty, or non-applicable rules
+
+policy_check.flagged_text:
+
+* copy the exact risky wording from INPUT_MESSAGE whenever possible
+* if the failure is a missing required-on-ad disclosure, use a short description of the missing item
+
+policy_check.issue_title:
+
+* short Thai title of the policy failure
+
+policy_check.issue_detail:
+
+* explain why the visible ad content violates the applicable rule
+
+policy_check.fix_note:
+
+* give one practical fix
+* do not add new claims, evidence, approval, guarantee, or unsupported wording
+
+display_reference:
+
+* build only from source and locator supplied in RULES_BLOCK
+* if unavailable, use an empty string
+
+DECISION PRIORITY
+
+Fail only when:
+
+1. there is a clear spelling issue, or
+2. there is a concrete policy failure supported by an applicable RULES_BLOCK rule.
+
+Return pass when:
+
+* spelling is uncertain
+* policy applicability is uncertain
+* the rule is unrelated to the ad category
+* the concern is only operational or evidence-related but not required to appear in the ad
+* the concern is only general caution
+
+Do not over-escalate.
+When unsure, do not create spell_check.items or policy_check items.
+Put useful uncertainty notes in spell_check.notes or policy_context.reviewer_notes.

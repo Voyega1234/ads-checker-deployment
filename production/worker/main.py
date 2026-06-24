@@ -34,6 +34,7 @@ from slack_routing import resolve_slack_route, resolve_slack_routes
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 POLICY_DIR = PROJECT_ROOT / "v2.0_run-all-ad-acc"
+MACMINI_WORKER_DIR = PROJECT_ROOT / "mac_mini_worker"
 OUTPUT_DIR = PROJECT_ROOT / os.environ.get("OUTPUT_DIR", "output")
 DEFAULT_REPORT_VIEWER_URL = "https://report-viewer-theta.vercel.app/report-viewer"
 
@@ -79,6 +80,33 @@ def main() -> int:
     )
     parser.add_argument("--channel", default=os.environ.get("SLACK_OVERRIDE_CHANNEL_ID", ""))
     parser.add_argument("--viewer-url", default=os.environ.get("REPORT_VIEWER_URL", DEFAULT_REPORT_VIEWER_URL))
+    parser.add_argument(
+        "--slack-format",
+        choices=["viewer", "catalog"],
+        default=os.environ.get("SLACK_ALERT_FORMAT", "catalog"),
+        help=(
+            "Slack alert format. catalog is the default card carousel with Details "
+            "and Ignore rule actions; viewer keeps the old report-link message."
+        ),
+    )
+    parser.add_argument(
+        "--catalog-cache-images",
+        action="store_true",
+        default=os.environ.get("CATALOG_CACHE_IMAGES", "1").strip().lower() in {"1", "true", "yes", "on"},
+        help="Upload external catalog card images to Supabase before sending Slack.",
+    )
+    parser.add_argument(
+        "--catalog-fit-images",
+        action="store_true",
+        default=os.environ.get("CATALOG_FIT_IMAGES", "1").strip().lower() in {"1", "true", "yes", "on"},
+        help="Fit catalog card images onto a white canvas before uploading/sending.",
+    )
+    parser.add_argument(
+        "--catalog-max-cards",
+        type=int,
+        default=int(os.environ.get("CATALOG_MAX_CARDS", "10")),
+        help="Maximum catalog cards to send to Slack (default: 10).",
+    )
     parser.add_argument("--placement-report", default="")
     parser.add_argument("--unified-report", default="")
     parser.add_argument("--skip-slack", action="store_true")
@@ -113,6 +141,15 @@ def main() -> int:
         help=(
             "Policy assessment runner. legacy keeps current realtime worker; "
             "batch uses Gemini Batch API; hybrid chooses batch for larger accounts."
+        ),
+    )
+    parser.add_argument(
+        "--policy-engine",
+        choices=["legacy", "macmini"],
+        default=os.environ.get("POLICY_ENGINE", "legacy"),
+        help=(
+            "Policy implementation. legacy uses v2.0_run-all-ad-acc; "
+            "macmini submits caption jobs to macmini_worker_jobs."
         ),
     )
     parser.add_argument(
@@ -364,13 +401,10 @@ def run_single_account(
             f"sent_at={recent_send.get('sent_at') or '-'} channel={recent_send.get('channel_id') or '-'} "
             f"slack_ts={recent_send.get('slack_ts') or '-'}"
         )
-        if args.mark_events_processed:
-            mark_status_events_processed(
-                account_num,
-                new_ad_ids=new_ad_ids,
-                event_ids=event_ids,
-                batch_id=event_batch_id,
-                source=args.source,
+        if event_ids or new_ad_ids:
+            print(
+                "  Leaving meta_ad_status_events pending because this run was rate-limited; "
+                "the next eligible run will process them."
             )
         return 0
 
@@ -385,31 +419,47 @@ def run_single_account(
         Path(args.unified_report) if args.unified_report
         else account_output_dir / f"unified-alert-{account_num}.json"
     )
+    policy_run_id = None
 
     if args.mode in {"policy", "full"}:
         client_id = (slack_route.client_id if slack_route else "").strip()
-        if should_skip_policy(account, account_num, client_id, new_ad_ids, args):
+        skip_policy = False
+        if args.policy_engine == "macmini":
+            print("  Policy smart skip bypassed: macmini engine uses its own queue results.")
+        else:
+            skip_policy = should_skip_policy(account, account_num, client_id, new_ad_ids, args)
+        if skip_policy:
             print("  Policy smart skip: active ad content unchanged and no webhook new ad IDs.")
         else:
-            policy_runner = args.policy_runner
-            if new_ad_ids and policy_runner != "batch":
-                policy_runner = "batch"
-                print("  Webhook new ad IDs detected; using batch policy fetch-by-id (no ACTIVE filter).")
-            elif policy_runner == "hybrid":
-                policy_runner = choose_hybrid_policy_runner(account, args)
-            if policy_runner == "batch":
-                if not client_id:
-                    raise SystemExit(f"Cannot run batch policy without a meta_adaccounts Client for {account}")
-                run_policy_batch(
+            if not client_id:
+                raise SystemExit(f"Cannot run policy without a meta_adaccounts Client for {account}")
+            if args.policy_engine == "macmini":
+                policy_run_id = run_policy_macmini(
                     account,
                     client_id=client_id,
                     poll_interval=args.batch_poll_interval,
                     timeout=args.batch_timeout,
-                    force_recheck=args.batch_force_recheck,
                     new_ad_ids=new_ad_ids,
+                    source=args.source,
                 )
             else:
-                run_policy(account, channel=slack_route.channel_id if slack_route else args.channel)
+                policy_runner = args.policy_runner
+                if new_ad_ids and policy_runner != "batch":
+                    policy_runner = "batch"
+                    print("  Webhook new ad IDs detected; using batch policy fetch-by-id (no ACTIVE filter).")
+                elif policy_runner == "hybrid":
+                    policy_runner = choose_hybrid_policy_runner(account, args)
+                if policy_runner == "batch":
+                    policy_run_id = run_policy_batch(
+                        account,
+                        client_id=client_id,
+                        poll_interval=args.batch_poll_interval,
+                        timeout=args.batch_timeout,
+                        force_recheck=args.batch_force_recheck,
+                        new_ad_ids=new_ad_ids,
+                    )
+                else:
+                    run_policy(account, channel=slack_route.channel_id if slack_route else args.channel)
 
     if args.mode in {"placement", "full"}:
         run_placement(account, account_output_dir, new_ad_ids=new_ad_ids)
@@ -421,6 +471,7 @@ def run_single_account(
             unified_report,
             source=args.source,
             new_ad_ids=new_ad_ids,
+            policy_run_id=policy_run_id,
         )
 
     if args.mode == "slack" or (args.mode == "full" and not args.skip_slack):
@@ -431,7 +482,15 @@ def run_single_account(
                 print("  Slack dedupe: report indexed only; client/channel already received an alert this run.")
                 run_slack_index(unified_report, slack_route.channel_id, args.viewer_url)
             else:
-                slack_result = run_slack(unified_report, slack_route.channel_id, args.viewer_url)
+                slack_result = run_slack(
+                    unified_report,
+                    slack_route.channel_id,
+                    args.viewer_url,
+                    slack_format=args.slack_format,
+                    catalog_cache_images=args.catalog_cache_images,
+                    catalog_fit_images=args.catalog_fit_images,
+                    catalog_max_cards=args.catalog_max_cards,
+                )
                 if slack_result.get("slack"):
                     if slack_send_tracker is not None:
                         slack_send_tracker.add(slack_key)
@@ -569,12 +628,68 @@ def _policy_python() -> Path:
     return python_bin if python_bin.exists() else Path(sys.executable)
 
 
+def _macmini_python() -> Path:
+    python_bin = MACMINI_WORKER_DIR / ".venv" / "bin" / "python"
+    if python_bin.exists():
+        return python_bin
+    return _policy_python()
+
+
 def run_policy(account: str, channel: str = "") -> None:
     env = os.environ.copy()
     env["DISABLE_LEGACY_TEXT_SLACK"] = "1"
     if channel:
         env["SLACK_OVERRIDE_CHANNEL_ID"] = channel
     run_command([str(_policy_python()), "worker.py", "--once", account], cwd=POLICY_DIR, env=env)
+
+
+def run_policy_macmini(
+    account: str,
+    *,
+    client_id: str,
+    poll_interval: int,
+    timeout: int,
+    new_ad_ids: list[str] | None = None,
+    source: str = "",
+) -> str:
+    command = [
+        str(_macmini_python()),
+        "account_runner.py",
+        "--account",
+        account,
+        "--client-id",
+        client_id,
+        "--poll-interval",
+        str(max(1, min(int(poll_interval), 30))),
+        "--timeout",
+        str(max(1, int(timeout))),
+        "--source",
+        source or "workflow",
+    ]
+    if new_ad_ids:
+        command.extend(["--new-ad-ids", ",".join(new_ad_ids)])
+    completed = subprocess.run(
+        command,
+        cwd=str(MACMINI_WORKER_DIR),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+    )
+    if completed.stdout:
+        print(completed.stdout, end="")
+    if completed.returncode != 0:
+        raise SystemExit(
+            f"macmini policy engine failed for {account}: "
+            f"{completed.stderr.strip() or completed.stdout.strip()}"
+        )
+    for line in reversed(completed.stdout.splitlines()):
+        if not line.startswith("RESULT_JSON="):
+            continue
+        result = json.loads(line.removeprefix("RESULT_JSON="))
+        run_id = str(result.get("run_id") or "").strip()
+        if run_id:
+            return run_id
+    raise SystemExit(f"macmini policy engine returned no run_id for {account}")
 
 
 def run_policy_batch(
@@ -585,7 +700,8 @@ def run_policy_batch(
     timeout: int,
     force_recheck: bool,
     new_ad_ids: list[str] | None = None,
-) -> None:
+) -> str:
+    run_id = str(uuid.uuid4())
     command = [
         str(_policy_python()),
         "batch_policy.py",
@@ -594,6 +710,8 @@ def run_policy_batch(
         client_id,
         "--account",
         account,
+        "--run-id",
+        run_id,
         "--wait",
         "--poll-interval",
         str(max(1, int(poll_interval))),
@@ -605,6 +723,7 @@ def run_policy_batch(
     if force_recheck:
         command.append("--force-recheck")
     run_command(command, cwd=POLICY_DIR)
+    return run_id
 
 
 def choose_hybrid_policy_runner(account: str, args: argparse.Namespace) -> str:
@@ -791,6 +910,7 @@ def run_unified(
     *,
     source: str = "",
     new_ad_ids: list[str] | None = None,
+    policy_run_id: str | None = None,
 ) -> None:
     if not placement_report.exists():
         print(f"  Placement report missing; building policy-only unified report: {placement_report}")
@@ -827,6 +947,8 @@ def run_unified(
         command.extend(["--source", source])
     if new_ad_ids:
         command.extend(["--new-ad-ids", ",".join(new_ad_ids)])
+    if policy_run_id:
+        command.extend(["--policy-run-id", policy_run_id])
     run_command(command, cwd=PROJECT_ROOT)
 
 
@@ -952,7 +1074,33 @@ def assert_placement_report_account(placement_report: Path, account: str) -> Non
         )
 
 
-def run_slack(unified_report: Path, channel: str, viewer_url: str) -> dict:
+def run_slack(
+    unified_report: Path,
+    channel: str,
+    viewer_url: str,
+    slack_format: str = "viewer",
+    catalog_cache_images: bool = False,
+    catalog_fit_images: bool = False,
+    catalog_max_cards: int = 10,
+) -> dict:
+    if slack_format == "catalog":
+        command = [
+            "node",
+            "src/send-report-catalog-to-slack.js",
+            "--json",
+            str(unified_report),
+            "--channel",
+            channel,
+            "--upload-report",
+            "--log-send",
+            "--max-cards",
+            str(catalog_max_cards),
+        ]
+        if catalog_cache_images:
+            command.append("--cache-images")
+        if catalog_fit_images:
+            command.append("--fit-images")
+        return run_command_json(command, cwd=PROJECT_ROOT)
     if not viewer_url:
         raise SystemExit("Missing --viewer-url or REPORT_VIEWER_URL for Slack send.")
     return run_command_json(
@@ -970,7 +1118,9 @@ def run_slack(unified_report: Path, channel: str, viewer_url: str) -> dict:
     )
 
 
-def run_slack_index(unified_report: Path, channel: str, viewer_url: str) -> dict:
+def run_slack_index(unified_report: Path, channel: str, viewer_url: str, slack_format: str = "viewer") -> dict:
+    if slack_format == "catalog":
+        print("  Catalog Slack format has no index-only mode; indexing with viewer report sender.")
     if not viewer_url:
         raise SystemExit("Missing --viewer-url or REPORT_VIEWER_URL for report index.")
     return run_command_json(

@@ -6,7 +6,7 @@ Works with the SQL init file that creates:
   - public.policy_rule_embeddings
   - public.get_policy_rule_embedding_refresh_queue(...)
   - public.upsert_policy_rule_embedding(...)
-  - public.match_policy_rules_hybrid(...)
+  - public.match_policy_rules_vector(...)
 
 Default:
   model = gemini-embedding-2
@@ -86,7 +86,7 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "gemini-embedding-2")
 EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "1536"))
 
 # Store model + dimension in the DB so future re-embedding is clear.
-# This must match what you pass into match_policy_rules_hybrid later.
+# This must match what you pass into match_policy_rules_vector later.
 EMBEDDING_MODEL_DB_NAME = os.getenv(
     "EMBEDDING_MODEL_DB_NAME",
     f"{EMBEDDING_MODEL}:{EMBEDDING_DIMENSION}",
@@ -282,12 +282,10 @@ def search_policy_rules(
     )
 
     result = supabase.rpc(
-        "match_policy_rules_hybrid",
+        "match_policy_rules_vector",
         {
-            "input_text": text,
             "query_embedding": vector_to_pg_literal(query_embedding),
-            "final_match_count": final_match_count,
-            "vector_candidate_count": vector_candidate_count,
+            "match_count": final_match_count,
             "embedding_model_filter": EMBEDDING_MODEL_DB_NAME,
             "policy_type_filter": policy_type_filter,
             "rule_status_filter": rule_status_filter or DEFAULT_RULE_STATUS_FILTER,

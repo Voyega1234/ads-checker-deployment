@@ -472,6 +472,12 @@ DECISION PRIORITY
 - Do not create issues from rule text alone; the issue must be triggered by INPUT_MESSAGE.
 - When evidence is uncertain or only advisory, return pass and add a reviewer note.
 
+Assess the following message.
+
+=== INPUT_MESSAGE START ===
+{{message}}
+=== INPUT_MESSAGE END ===
+
 === RULES_BLOCK START ===
 {{rules_block}}
 === RULES_BLOCK END ===
@@ -479,5 +485,3 @@ DECISION PRIORITY
 === QUICK_REFERENCE_BLOCK START ===
 {{quick_reference_block}}
 === QUICK_REFERENCE_BLOCK END ===
-
-The INPUT_MESSAGE is supplied separately after this prompt. Analyze only that message.

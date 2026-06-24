@@ -36,7 +36,8 @@ OUTPUT_JSON_PATH = BASE_DIR / "temp" / "policy_rule_checker_output.json"
 MODEL_ID = os.getenv("GEMINI_MODEL_ID", "gemini-3-flash-preview")
 MAX_GEMINI_ATTEMPTS = int(os.getenv("MAX_GEMINI_ATTEMPTS", "5"))
 MAX_REPAIR_ROUNDS = int(os.getenv("MAX_REPAIR_ROUNDS", "3"))
-GEMINI_TEMPERATURE = float(os.getenv("GEMINI_TEMPERATURE", "0.5"))
+GEMINI_TEMPERATURE = float(os.getenv("GEMINI_TEMPERATURE", "1.0"))
+GEMINI_SEED = int(os.getenv("GEMINI_SEED", "42"))
 MAX_OUTPUT_TOKENS = int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "10000"))
 RULES_BLOCK_MAX_RULES = int(os.getenv("RULES_BLOCK_MAX_RULES", "1000"))
 POLICY_RULE_RETRIEVAL = os.getenv("POLICY_RULE_RETRIEVAL", "embedding").strip().lower()
@@ -190,44 +191,23 @@ def build_task_instruction_caption_only() -> str:
 # SUPABASE POLICY RULES
 # ============================================================
 
-def fetch_policy_rules(policy_type: str, *, supabase_url: str, supabase_key: str) -> List[Dict[str, Any]]:
-    select_cols = ",".join([
-        "id",
-        "policy_type",
-        "type_id",
-        "rule_status",
-        "trigger_mode",
-        "trigger_text",
-        "normalized_concept",
-        "short_title",
-        "rule_text",
-        "fix_note",
-        "ref_scheme",
-        "ref_display",
-        "ref_metadata_json",
-        "quote_text",
-        "quote_text_th",
-        "quote_text_en",
-        "tags_json",
-        "priority",
-        "rules_block_priority",
-    ])
-
+def fetch_policy_rules(
+    policy_type: Optional[str] = None,
+    *,
+    supabase_url: str,
+    supabase_key: str,
+) -> List[Dict[str, Any]]:
     url = f"{supabase_url.rstrip('/')}/rest/v1/policy_rules"
     params = {
-        "select": select_cols,
-        "policy_type": f"eq.{policy_type}",
-        "is_active": "eq.true",
-        "use_in_prompt": "eq.true",
-        "use_in_rules_block": "eq.true",
-        "order": "rules_block_priority.desc,priority.desc",
+        "select": "*",
+        "order": "created_at.asc",
     }
     headers = {
         "apikey": supabase_key,
         "Authorization": f"Bearer {supabase_key}",
     }
 
-    logger.info("Fetching Supabase rules: policy_type=%s", policy_type)
+    logger.info("Fetching Supabase policy_rules%s", f": policy_type={policy_type}" if policy_type else "")
     res = requests.get(url, params=params, headers=headers, timeout=REQUEST_TIMEOUT_SECONDS)
     if not (200 <= res.status_code < 300):
         raise RuntimeError(f"Supabase fetch failed ({res.status_code}): {res.text}")
@@ -270,26 +250,37 @@ def normalize_rule_for_prompt(row: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(tags, list):
         tags = []
 
+    title = row.get("short_title") or row.get("rule_title") or row.get("normalized_concept") or ""
+    reference_display = row.get("ref_display") or row.get("src_display") or row.get("src_locator") or ""
+    quote_text = (
+        row.get("quote_text_th")
+        or row.get("quote_text")
+        or row.get("quote_text_en")
+        or row.get("raw_rule_from_src")
+        or ""
+    )
+    source_type = row.get("policy_type") or row.get("source_type") or ""
+
     prompt_rule = {
         "rule_id": row.get("id") or row.get("rule_id") or "",
-        "policy_type": row.get("policy_type") or "",
-        "source_type": row.get("policy_type") or "",
+        "policy_type": source_type,
+        "source_type": source_type,
         "rule_status": row.get("rule_status") or "",
         "trigger_mode": row.get("trigger_mode") or "",
         "trigger_text": row.get("trigger_text") or "",
         "normalized_concept": row.get("normalized_concept") or "",
-        "short_title": row.get("short_title") or "",
+        "short_title": title,
         "rule_text": row.get("rule_text") or "",
         "fix_note": row.get("fix_note") or "",
         "reference": {
             "ref_scheme": row.get("ref_scheme") or "",
-            "ref_display": row.get("ref_display") or "",
+            "ref_display": reference_display,
             "law_name": ref_meta.get("law_name") or ref_meta.get("act_name") or "",
             "gazette_or_announcement": ref_meta.get("announcement_number") or "",
-            "reference_locator": build_reference_locator(ref_meta, row.get("ref_display") or ""),
-            "reference_section": row.get("ref_display") or "",
+            "reference_locator": build_reference_locator(ref_meta, reference_display),
+            "reference_section": reference_display,
         },
-        "quote_text": row.get("quote_text_th") or row.get("quote_text") or row.get("quote_text_en") or "",
+        "quote_text": quote_text,
         "tags": tags,
     }
     return strip_empty_prompt_rule_fields(prompt_rule)
@@ -365,24 +356,16 @@ def get_policy_rules_for_caption(
             }
         except Exception as exc:
             logger.exception("Embedding policy retrieval failed; falling back to all rules: %s", exc)
-            thai_law_rows = fetch_policy_rules("thai_law", supabase_url=supabase_url, supabase_key=supabase_key)
-            meta_policy_rows = fetch_policy_rules("meta_policy", supabase_url=supabase_url, supabase_key=supabase_key)
-            rows = thai_law_rows + meta_policy_rows
+            rows = fetch_policy_rules(supabase_url=supabase_url, supabase_key=supabase_key)
             return rows, {
                 "retrieval": "all_fallback_after_embedding_error",
                 "retrieval_error": str(exc),
-                "thai_law_rules": len(thai_law_rows),
-                "meta_policy_rules": len(meta_policy_rows),
                 "retrieved_rules": len(rows),
             }
 
-    thai_law_rows = fetch_policy_rules("thai_law", supabase_url=supabase_url, supabase_key=supabase_key)
-    meta_policy_rows = fetch_policy_rules("meta_policy", supabase_url=supabase_url, supabase_key=supabase_key)
-    rows = thai_law_rows + meta_policy_rows
+    rows = fetch_policy_rules(supabase_url=supabase_url, supabase_key=supabase_key)
     return rows, {
         "retrieval": "all",
-        "thai_law_rules": len(thai_law_rows),
-        "meta_policy_rules": len(meta_policy_rows),
         "retrieved_rules": len(rows),
     }
 
@@ -817,6 +800,7 @@ def build_gemini_payload(
         "contents": [{"role": "user", "parts": parts}],
         "generationConfig": {
             "temperature": GEMINI_TEMPERATURE,
+            "seed": GEMINI_SEED,
             "maxOutputTokens": MAX_OUTPUT_TOKENS,
             "responseMimeType": "application/json",
             "responseSchema": build_fda_response_schema_caption_only(),

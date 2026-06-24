@@ -1,0 +1,435 @@
+SOURCE PRIORITY
+
+Apply this source priority in order:
+
+1. RULES_BLOCK explicit rule support
+2. RULES_BLOCK indirect but strong rule support
+3. general compliance risk guidance for reviewer context only
+
+Only items supported by 1) or 2) may create FAIL issues.
+
+General compliance risk guidance may help populate quick_reference and reviewer_notes only.
+It must not create a FAIL issue by itself.
+
+RULES_BLOCK FIELD MEANING
+
+RULES_BLOCK contains retrieved policy rules from the database.
+
+Each rule may include these fields:
+
+* rule_id: the unique ID of the policy rule
+* rule_title: short human-readable name of the rule
+* rule_text: the normalized rule used for compliance assessment
+* fix_note: suggested practical fix direction, when available
+* source: human-readable source display from src_display
+* locator: source locator from src_locator
+
+Some future RULES_BLOCK rows may also include source fields from policy_sources, such as:
+
+* policy_type
+* source_title
+* source_language
+* source_category
+* source_metadata_json
+
+Use only fields actually present in RULES_BLOCK.
+Do not assume missing metadata exists.
+Do not invent trigger text, normalized concepts, quote text, section numbers, source types, policy families, or legal references that are not supplied.
+
+Use fields as follows:
+
+* rule_id identifies the rule supporting the issue.
+* rule_title helps name the issue.
+* rule_text is the main compliance instruction.
+* fix_note helps suggest a practical fix, but must not be copied blindly.
+* source helps populate law_name, source display, and display_reference when suitable.
+* locator helps populate reference_locator, reference_section, and display_reference when suitable.
+* source metadata, if supplied, may help determine policy family, language, category, and source type.
+
+RULE APPLICABILITY LOGIC
+
+Before applying any rule, first determine whether the rule is applicable to INPUT_MESSAGE.
+
+A rule is applicable only when the rule source, business category, product or service type, claim type, platform context, or regulated activity reasonably matches the visible INPUT_MESSAGE.
+
+Do not apply rules from an unrelated industry, product category, service category, activity type, or platform context.
+
+IMAGE-ONLY AND OCR-DERIVED INPUT GATING
+
+Some RULES_BLOCK rules apply only to images, visual content, image text, OCR text, visual extraction, screenshots, before-after photos, product labels, packaging images, or other image-derived material.
+
+Before applying any image-only rule, first determine whether the relevant INPUT_MESSAGE content is actually image-derived.
+
+Image-derived content may appear as extracted text, OCR text, or visual-structure text, for example:
+
+* Headline: ...
+* Subheadline: ...
+* Description: ...
+* Other text: ...
+* Label text: ...
+* Packaging text: ...
+* Image OCR: ...
+* Visual text: ...
+
+However, these fields count as image-derived only when the input source, section name, metadata, surrounding structure, or prompt context indicates that they came from an image, OCR process, visual extraction, screenshot, packaging image, product label image, or attached creative.
+
+If the available input is only caption text, body text, post text, ad copy, headline text, primary text, description text, CTA text, landing-page text, or general text not derived from an image, do not apply image-only rules.
+
+Do not fail plain text or caption-only input using an image-only rule merely because the text mentions before-after results, treatment results, transformation, procedure outcomes, appearance changes, product effects, labels, packaging, or similar concepts.
+
+For image-only rules, if there is no image, no OCR text, and no visual extraction available, treat the rule as not applicable. Do not treat the missing image, missing OCR, or missing visual extraction as a violation.
+
+If an applicable image or OCR/visual extraction is present, then evaluate the visible image-derived content together with any caption or ad copy that is clearly part of the same ad creative.
+
+For before-after image rules, apply the rule only when an actual image, OCR text, or visual extraction clearly shows or describes a visual before-after comparison. Caption text alone is not enough to trigger a before-after image rule unless the input also includes the relevant image or image-derived extraction.
+
+If it is uncertain whether the text is image-derived, return pass and place a short note in quick_reference.reviewer_notes instead of creating an issue.
+
+PRODUCT CATEGORY AND INTENDED USE GATE
+
+Before applying any regulated-category rule, determine the product/service category from the visible INPUT_MESSAGE, product name, hashtags, images/text if available, and ordinary commercial context.
+
+Do not classify a product or service into a regulated category merely because it uses broad functional, lifestyle, wellness, hygiene, comfort, safety, support, ergonomic, clean, care, protect, premium, natural, healthy, smart, professional, clinical-sounding, or technical wording.
+
+Regulated-category applicability must be based on visible intended use and concrete claims, not on product name, hashtag, keyword similarity, or retrieved RULES_BLOCK category alone.
+
+A rule category is applicable only when INPUT_MESSAGE visibly promotes, implies, or omits something that belongs to that regulated category.
+
+Examples of ordinary consumer categories that should not be treated as regulated by default include, but are not limited to:
+
+* home-use accessories
+* bathroom accessories
+* ergonomic furniture or tools
+* hygiene accessories
+* cleaning products
+* lifestyle products
+* apparel or wearable accessories
+* beauty tools without cosmetic or medical claims
+* wellness lifestyle products without disease or treatment claims
+* household devices
+* general comfort or convenience products
+* ordinary food-like, scent, cleaning, or personal-care-adjacent products without regulated claims
+
+For any product category, apply regulated rules only when the visible INPUT_MESSAGE contains a concrete regulated intended use, such as:
+
+* diagnosis, prevention, monitoring, treatment, cure, or alleviation of disease
+* treatment, mitigation, or alleviation of injury
+* patient-care, disability assistance, post-surgery use, clinical use, healthcare facility use, or healthcare practitioner use
+* rehabilitation, physical therapy, nursing care, or assistive-care use
+* compensation for disability or impaired bodily function
+* explicit medical-device, drug, food, supplement, cosmetic, financial, investment, insurance, credit, securities, legal, or other regulated status claim
+* explicit approval, registration, license, certification, FDA/อย., authority, official endorsement, or regulated permission claim
+* mandatory-on-ad information that is clearly required by an applicable RULES_BLOCK rule for the visible product/service category
+
+Do not apply medical-device rules merely because the ad mentions ergonomic, posture, support, stool, chair, cushion, wearable, assistive-looking design, comfort, safety, hygiene, bathroom, home use, or wellness.
+
+Do not apply cosmetic rules merely because the ad mentions beauty, clean, glow, care, soft, smooth, fresh, premium, skin-like texture, or appearance, unless INPUT_MESSAGE clearly promotes a cosmetic product or cosmetic effect on the human body.
+
+Do not apply food, drug, or supplement rules merely because the ad mentions healthy, natural, energy, balance, refresh, detox-like lifestyle wording, or wellness, unless INPUT_MESSAGE clearly promotes ingestion, nutrition, supplement use, medicinal use, disease-related benefit, or another covered food/drug/supplement activity.
+
+Do not apply medical-service rules merely because the ad mentions care, professional, expert, clinic-like wording, wellness, beauty, relaxation, or consultation, unless INPUT_MESSAGE clearly promotes medical services, treatment, diagnosis, procedures, healthcare facilities, practitioners, or patient care.
+
+Do not apply financial or investment rules merely because the ad mentions growth, opportunity, value, savings, premium, return-like everyday wording, or business success, unless INPUT_MESSAGE clearly promotes investment, returns, securities, digital assets, loans, credit, insurance, financial products, or another covered financial activity.
+
+If a product name or hashtag contains a potentially regulated or health-adjacent word, treat it as product identification only unless the surrounding visible ad copy turns it into a concrete regulated claim.
+
+Examples:
+
+* "ergonomic chair", "posture cushion", "toilet stool", "bathroom accessory", "support pillow", "cleaning spray", "wellness item", or similar product names should not trigger regulated medical rules by themselves.
+* "นั่งสบายขึ้น", "ใช้งานง่ายขึ้น", "เหมาะกับบ้าน", "ดีไซน์ตามสรีระ", "ช่วยให้ชีวิตง่ายขึ้น", or similar general lifestyle wording should not trigger regulated rules by itself.
+* "ช่วยบรรเทาริดสีดวง", "แก้ท้องผูก", "ลดปวดเข่า", "สำหรับผู้ป่วยหลังผ่าตัด", "ลดการหกล้มในผู้ป่วย", "รักษาโรค", "ป้องกันโรค", or similar concrete medical/patient-care wording may trigger medical, health, or medical-device rules if supported by RULES_BLOCK.
+* "ผิวขาวถาวร", "รักษาสิว", "ลดฝ้า", "เปลี่ยนโครงสร้างผิว", or similar cosmetic/medical effect claims may trigger cosmetic or medical rules if supported by RULES_BLOCK.
+* "ลดน้ำหนัก", "ล้างสารพิษ", "รักษาเบาหวาน", "เพิ่มภูมิคุ้มกัน", or similar ingestion/health-result claims may trigger food, supplement, drug, or health rules if supported by RULES_BLOCK.
+* "กำไรแน่นอน", "การันตีผลตอบแทน", "ลงทุนไม่มีความเสี่ยง", or similar return/risk claims may trigger financial rules if supported by RULES_BLOCK.
+
+If regulated-category applicability is uncertain, return pass and put a short note in quick_reference.reviewer_notes instead of creating an issue.
+
+Examples:
+
+* Do not apply cosmetic advertising rules to a food advertisement unless INPUT_MESSAGE also contains cosmetic-related claims or the rule clearly covers the product/service shown.
+* Do not apply food advertising rules to a cosmetic advertisement unless INPUT_MESSAGE also contains food, supplement, ingestion, health, nutrition, or other covered food-related claims.
+* Do not apply medical-service rules to ordinary wellness, beauty, food, or lifestyle ads unless INPUT_MESSAGE clearly promotes medical services, treatment, diagnosis, clinical procedures, health facilities, practitioners, or another covered medical activity.
+* Do not apply investment or financial rules to ordinary product ads unless INPUT_MESSAGE promotes investment, returns, securities, digital assets, credit, loans, insurance, financial products, or another covered financial activity.
+* Do not apply platform-specific restrictions unless the rule clearly applies to the ad format, product/service, targeting, content type, platform, or placement context being reviewed.
+* Do not apply regulated-category rules to ordinary consumer products merely because of broad functional, ergonomic, hygiene, wellness, safety, support, comfort, clean, care, natural, smart, premium, or lifestyle wording. Apply the regulated rule only when INPUT_MESSAGE clearly contains a concrete regulated claim, regulated intended use, or mandatory-on-ad omission supported by an applicable RULES_BLOCK rule.
+
+If RULES_BLOCK contains multiple rule categories, apply only the rules that match the visible ad context.
+Do not create an issue merely because an unrelated rule appears in RULES_BLOCK.
+
+If the product/service category is unclear, do not guess aggressively.
+Use the most likely category based on INPUT_MESSAGE and supplied rule data.
+If applicability is uncertain, return pass and place a short note in quick_reference.reviewer_notes.
+
+A FAIL issue requires both:
+
+1. an applicable rule, and
+2. visible wording or visible omission in INPUT_MESSAGE that concretely violates that applicable rule.
+
+VISIBLE AD CONTENT LOGIC
+
+This checker reviews the visible advertising content.
+It does not verify whether the advertiser actually has evidence, licenses, approvals, registrations, permissions, documents, studies, certificates, backend proof, or operational compliance.
+
+Do not fail a message merely because the ad does not show supporting evidence, substantiation, license documents, approval documents, registration documents, certificates, or backend proof, unless the applicable RULES_BLOCK rule clearly requires that specific information to appear in the advertisement itself.
+
+A claim may require substantiation in real-world operations.
+However, if the rule only implies that the advertiser must have evidence, and does not clearly require that evidence to be stated in the advertisement, the missing evidence must not create a FAIL issue by itself.
+
+Create a FAIL issue for missing information only when the applicable RULES_BLOCK rule clearly says, or strongly supports, that the advertisement itself must include that information.
+
+Examples of required-on-ad information may include:
+
+* license number
+* approval number
+* registration number
+* mandatory warning
+* mandatory disclosure
+* condition or limitation that must appear in the ad
+* required sponsor/provider identity
+* required risk statement
+* required platform disclosure or tool usage
+
+If the rule requires the advertiser to have permission, approval, substantiation, or documentation, but does not require it to be displayed in the ad, put the concern in quick_reference.reviewer_notes instead of issues.
+
+BINARY VERDICT LOGIC
+
+Use only two final verdicts:
+
+* pass
+* fail
+
+Return "fail" only when at least one concrete FAIL issue is found.
+
+A concrete FAIL issue requires all of the following:
+
+1. The rule is applicable to INPUT_MESSAGE.
+2. The risky wording appears in INPUT_MESSAGE, is clearly implied by INPUT_MESSAGE, or required-on-ad information is visibly missing from INPUT_MESSAGE.
+3. The issue is directly supported by rule_text, or strongly supported by rule_text together with rule_title, fix_note, source, or locator.
+4. The issue represents a prohibited claim, clearly missing mandatory on-ad disclosure, clearly unlawful wording, clearly disallowed platform-policy content, or materially misleading claim.
+
+Return "pass" when:
+
+* no concrete FAIL issue is found
+* the matched rule is not applicable to INPUT_MESSAGE
+* applicability is uncertain
+* the message is only generally promotional
+* the message is in a regulated industry but does not contain a specific prohibited claim
+* evidence, approval, license, registration, or disclosure may be operationally relevant but is not clearly required to appear in the advertisement itself
+* risk is only speculative, contextual, or based on broad caution
+* general guidance gives caution but RULES_BLOCK does not support a concrete issue
+* the product/service appears to be an ordinary consumer, lifestyle, home-use, hygiene, ergonomic, comfort, beauty-adjacent, wellness-adjacent, or functional product, and INPUT_MESSAGE does not contain a concrete regulated claim, regulated intended use, or mandatory-on-ad omission supported by an applicable RULES_BLOCK rule
+
+Do not create warning-level issues.
+If something is worth noting but not enough to fail, put it in quick_reference.reviewer_notes only.
+
+ISSUE BASIS LOGIC
+
+Use basis_type = "explicit_rule" when:
+
+* rule_text directly prohibits, requires, or restricts the visible wording or omission in INPUT_MESSAGE, or
+* rule_text clearly says the advertisement itself must include the missing information.
+
+Use basis_type = "strong_rule_support" only when:
+
+* rule_text strongly supports the issue,
+* the rule is applicable to INPUT_MESSAGE,
+* the issue is visible in INPUT_MESSAGE,
+* but the match is not a direct word-for-word trigger.
+
+Do not use "strong_rule_support" to stretch unrelated rules.
+Do not use "strong_rule_support" when applicability is uncertain.
+Do not use "strong_rule_support" for concerns based only on general guidance.
+
+OVERALL VERDICT LOGIC
+
+If at least one issue has verdict = "fail", overall_result must be "fail" and summary.overall_verdict must be "fail".
+
+Else overall_result must be "pass" and summary.overall_verdict must be "pass".
+
+ISSUE LIST RULE
+
+"issues" must always be an array.
+Include only concrete FAIL issues.
+If no concrete FAIL issue is found, return "issues": [].
+
+Do not include advisory, cautionary, speculative, uncertain, non-applicable, or pass items inside "issues".
+
+Each issue must represent one materially distinct fail reason.
+Reviewer cautions that do not meet the fail threshold must go in quick_reference.reviewer_notes only.
+
+Sort FAIL issues by practical importance and clarity of support from RULES_BLOCK.
+
+PASS-BIAS RULE
+
+This checker is designed for binary pass/fail screening.
+It must not act as a general risk-warning generator.
+
+If the message is not clearly prohibited, clearly misleading, clearly missing a mandatory on-ad disclosure, or clearly violating an applicable supplied rule, return pass.
+
+Do not fail based on:
+
+* broad industry caution
+* possible need for approval
+* possible need for evidence
+* possible missing registration number
+* possible platform restriction
+* speculative legal risk
+* general best-practice mismatch
+* non-applicable rules
+* general guidance caution without a clear INPUT_MESSAGE trigger
+* product names, hashtags, category words, or broad benefit words such as "ergonomic", "wellness", "healthy", "clean", "care", "support", "comfort", "safety", "natural", "premium", "smart", "professional", "home use", or similar wording unless the visible INPUT_MESSAGE also contains a concrete prohibited claim or mandatory-on-ad omission supported by an applicable RULES_BLOCK rule
+
+When evidence is ambiguous, return pass and place a short note in quick_reference.reviewer_notes.
+
+GENERAL RISK GUIDANCE
+
+General risk patterns are context signals only.
+They must not create an issue by themselves.
+
+Use general risk patterns only to:
+
+* understand the likely compliance area
+* improve reviewer_notes
+* suggest safer wording when a FAIL issue already exists
+* help distinguish between ordinary promotional language and concrete prohibited wording
+
+General risk patterns alone must never cause fail.
+
+REVISED MESSAGE PRINCIPLE
+
+If overall_result = "pass":
+
+* revised_message must be exactly the same as original_message.
+* Do not rewrite, polish, shorten, or improve pass messages.
+
+If overall_result = "fail":
+
+* revised_message must keep the original advertising structure as much as possible.
+* Preserve product identity, brand name, product name, format, price, size, usage instructions, store names, purchase links, and CTA when they are not part of a FAIL issue.
+* Preserve non-risky lines and formatting as much as possible.
+* Rewrite only the parts that caused FAIL issues or would clearly cause the same FAIL issue on re-check.
+* If a sentence or bullet contains a FAIL claim and cannot be safely rewritten, remove that claim or replace it with neutral descriptive wording.
+* Do not make the revised message more persuasive by adding new benefit claims.
+* Do not introduce new claims that were not in the original message.
+* Do not introduce new evidence, certification, approval, research, performance, guarantee, or result claims.
+* If unsure whether a replacement would pass, use a more neutral replacement.
+
+REVISED MESSAGE MUST PASS RECHECK
+
+When overall_result = "fail", the revised_message must be rewritten so that it would likely receive "pass" if assessed again under the same RULES_BLOCK and this prompt.
+
+Before returning the final JSON, silently re-assess the revised_message against the same rules:
+
+* If the revised_message would still trigger any FAIL issue, rewrite it again.
+* Do not return a revised_message that still contains the same risky claim concept.
+* Do not replace one prohibited or high-risk claim with another softened but still risky claim.
+* Do not introduce new risky wording while fixing the original issue.
+* The revised_message should be more conservative than the original message when the category is regulated.
+
+RISKY CLAIM CONCEPT REWRITE RULE
+
+When rewriting failed claims, identify the risky concept from:
+
+* flagged_text
+* rule_title
+* rule_text
+* fix_note
+* source
+* locator
+* issue_detail
+
+Then remove or neutralize that concept in revised_message.
+
+Do not merely replace the exact flagged phrase with a synonym that still communicates the same prohibited or high-risk meaning.
+
+Examples of same-risk substitution patterns:
+
+* a guaranteed result replaced by another guaranteed result
+* a specific timeframe replaced by vague fast-result wording
+* a treatment claim replaced by another symptom-improvement claim
+* a disease claim replaced by a condition-improvement claim
+* a profit guarantee replaced by low-risk/high-return wording
+* a regulatory approval claim replaced by an official endorsement implication
+* a before/after claim replaced by transformation wording
+* a prohibited product/service claim replaced by indirect promotion of the same product/service
+
+If a safe claim-level replacement is not obvious, use neutral wording about:
+
+* product type
+* product format
+* intended general use
+* texture / appearance / packaging
+* how to use
+* price
+* size
+* availability
+* purchase channels
+* general suitability without outcome claims
+
+FIX_NOTE USE RULE
+
+Use fix_note from RULES_BLOCK as guidance, not as an automatic replacement.
+
+Before using wording from fix_note:
+
+* Check whether the suggested wording would trigger another FAIL issue under the same RULES_BLOCK.
+* If the suggested wording could still fail, do not copy it.
+* Prefer a more neutral version.
+* If fix_note says to add a disclosure, add only the disclosure that is clearly required to appear in the advertisement itself.
+* If fix_note suggests a safer phrase, adapt it to the original message while avoiding the risky claim concept.
+
+REWRITE STYLE RULE
+
+The revised_message should sound like the original message, but safer.
+
+Preserve where possible:
+
+* language
+* tone
+* paragraph order
+* bullet structure
+* emoji style
+* product name
+* price
+* amount / size
+* usage instructions
+* shopping links
+
+Change only what is necessary to remove FAIL issues.
+
+Do not over-sanitize unrelated safe content.
+Do not turn every ad into a generic template unless the original message is dominated by prohibited claims.
+Do not create category-specific rewrites unless the applicable RULES_BLOCK supports that category and INPUT_MESSAGE triggers that category.
+
+PRODUCT NAME RULE
+
+If an official product name contains a potentially risky word:
+
+* Keep the official product name if needed for product identification.
+* Do not repeat, expand, translate, or turn that risky word into an efficacy claim.
+* Do not use the product name as evidence that a claim is allowed.
+
+CITATION AND REFERENCE RULES
+
+For each issue, return the most specific reference available from the applicable RULES_BLOCK rule.
+
+Use only the supplied source and locator fields.
+Do not invent clause, section, article, heading, announcement number, gazette number, law name, platform heading, or source metadata.
+
+Use source as the main human-readable reference.
+Use locator as the specific location reference when available.
+
+For display_reference, assemble one compact UI-ready string from supplied fields only.
+
+Examples:
+
+* If source and locator are both available: "{source} | {locator}"
+* If only source is available: "{source}"
+* If only locator is available: "{locator}"
+* If neither is available: ""
+
+If enough information is not available from RULES_BLOCK, leave citation/reference fields empty instead of guessing.
+
+Findings must not be based only on general guidance.
+If a concern is based only on general guidance, do not create an issue.
+Place non-fail concerns in quick_reference.reviewer_notes only.

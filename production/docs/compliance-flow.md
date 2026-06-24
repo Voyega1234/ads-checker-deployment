@@ -375,6 +375,36 @@ Spelling
 Placement
 ```
 
+Policy display ignores low-priority/waived rules before building report and
+Slack output. Raw Gemini output and `meta_ad_check_db` stay unchanged for audit.
+By default, rules with `policy_rules.priority = 50` are ignored in display. This
+currently covers the Thai translation requirement rule, so if it is the only
+failing rule the ad displays as pass/no open policy issue. If the same ad also
+fails other policy rules, only the non-ignored rules remain visible.
+
+Future display ignores can be added without code changes:
+
+```text
+AD_COMPLIANCE_DISPLAY_IGNORE_RULE_PRIORITIES=50
+AD_COMPLIANCE_DISPLAY_IGNORE_RULE_IDS=rule_id_1,rule_id_2
+```
+
+Client-specific display ignores are stored in Supabase:
+
+```text
+client_policy_rule_ignores
+  client_id
+  rule_id
+  is_ignored
+  last_updated_by_slack_id
+```
+
+When `is_ignored = true`, the unified report filters that rule only for the
+matching client. The catalog Slack cards expose an `Ignore rule` action only on
+cards that contain policy issues with rule IDs. The action payload includes the
+account/client/issue identifiers and the affected rule IDs; the logged issue row
+also stores `meta.ignorableRules` for n8n to render the selection modal.
+
 Slack sender:
 
 ```text
@@ -383,6 +413,18 @@ node src/send-report-viewer-to-slack.js \
   --channel <Slack Channel ID> \
   --viewer-url https://report-viewer-theta.vercel.app/report-viewer
 ```
+
+Catalog Slack sender uses fitted white-canvas images by default so carousel
+cards show the whole creative instead of raw cropped media. Relevant controls:
+
+```text
+CATALOG_CACHE_IMAGES=1
+CATALOG_FIT_IMAGES=1
+CATALOG_MAX_CARDS=10
+```
+
+Manual catalog sends can override with `--max-cards <n>`. Use
+`--no-cache-images --no-fit-images` only for explicit raw-image debugging.
 
 If there are no open issues, Slack may be skipped with reason `no_open_issues`.
 
@@ -466,6 +508,7 @@ Supabase tables currently involved:
 meta_adaccounts              active account list and client mapping
 meta_ad_check_db             fetched ad/creative/text state and policy status
 ad_compliance_issue_states   resolved/ignored issue state from report viewer
+client_policy_rule_ignores   client-specific policy rules hidden from Slack display
 policy_rule_types            policy rule metadata
 vw_rules_block_rows          prompt rule rows
 meta_ad_status_events        Meta webhook status events

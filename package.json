@@ -11,7 +11,11 @@
     "unified:preview": "node src/build-unified-compliance-alert.js",
     "report:html": "node src/build-html-report.js",
     "report:slack": "node src/send-html-report-to-slack.js",
-    "report:viewer:slack": "node src/send-report-viewer-to-slack.js"
+    "report:viewer:slack": "node src/send-report-viewer-to-slack.js",
+    "report:catalog:slack": "node src/send-report-catalog-to-slack.js",
+    "report:thread:slack": "node src/send-report-thread-to-slack.js",
+    "report:modal:slack": "node src/send-report-modal-to-slack.js",
+    "report:modal:server": "node production/slack-modal/server.js"
   },
   "dependencies": {
     "dotenv": "^16.4.7",

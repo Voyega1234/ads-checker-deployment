@@ -14,24 +14,44 @@ async function main() {
   const accountId = normalizeActId(args.account || inferAccountIdFromReportPath(reportPath));
   const source = `${args.source || ""}`.trim();
   const newAdIds = parseCsv(args["new-ad-ids"] || args.newAdIds || "");
+  const policyRunId = `${args["policy-run-id"] || args.policyRunId || ""}`.trim();
 
   const placementReport = await readJson(reportPath);
   const placementResults = placementReport.results || [];
   const account = buildAccountSummary(placementResults, accountId);
-  const [policyRows, accountInfo] = await Promise.all([
-    fetchPolicyRows(account.numericId),
-    fetchAccountInfo(account.numericId)
+  const [allPolicyRows, accountInfo, baseDisplayIgnoredPolicyRuleIds] = await Promise.all([
+    fetchPolicyRows(account.numericId, policyRunId),
+    fetchAccountInfo(account.numericId),
+    fetchDisplayIgnoredPolicyRuleIds()
   ]);
+  const policyRows = filterPolicyRowsForCurrentRun(allPolicyRows, placementResults, newAdIds);
   if (accountInfo?.accountName) account.name = accountInfo.accountName;
+  const clientNameForIgnores =
+    firstNonEmpty(policyRows.map((row) => row.client_id)) ||
+    accountInfo?.clientName ||
+    account.name ||
+    account.id;
+  const clientIgnoredPolicyRuleIds = await fetchClientDisplayIgnoredPolicyRuleIds([
+    clientNameForIgnores,
+    account.id,
+    account.numericId
+  ]);
+  const displayIgnoredPolicyRuleIds = new Set([
+    ...baseDisplayIgnoredPolicyRuleIds,
+    ...clientIgnoredPolicyRuleIds
+  ]);
   const metaAdByAdId = await fetchMetaAdMetaByAdId(collectAdIds(policyRows, placementResults));
   const alert = await buildUnifiedAlert({
     account,
     generatedAt: placementReport.generatedAt || new Date().toISOString(),
     placementResults,
     policyRows,
+    displaySuppressedPolicyRuleIds: displayIgnoredPolicyRuleIds,
+    clientSuppressedPolicyRuleIds: clientIgnoredPolicyRuleIds,
     metaAdByAdId,
     source,
-    newAdIds
+    newAdIds,
+    policyRunId
   });
 
   await fs.mkdir(path.dirname(outPath), { recursive: true });
@@ -111,12 +131,50 @@ function buildAccountSummary(results, fallbackAccountId) {
   return { id, numericId, name };
 }
 
-async function fetchPolicyRows(accountNumericId) {
+async function fetchPolicyRows(accountNumericId, policyRunId = "") {
   const { supabaseUrl, supabaseKey } = getSupabaseEnv();
-  const query = new URL(`${supabaseUrl}/rest/v1/meta_ad_check_db`);
+  const table = policyRunId ? "meta_ad_check_historical_run" : "meta_ad_check_db";
+  const query = new URL(`${supabaseUrl}/rest/v1/${table}`);
   query.searchParams.set("select", "*");
   query.searchParams.set("ad_account_id", `eq.${accountNumericId}`);
-  return fetchSupabaseJson(query, supabaseKey, "policy rows");
+  if (policyRunId) {
+    query.searchParams.set("run_id", `eq.${policyRunId}`);
+  }
+  const rows = await fetchSupabaseJson(
+    query,
+    supabaseKey,
+    policyRunId ? `policy run ${policyRunId}` : "current policy rows"
+  );
+  return policyRunId ? rows : selectLatestPolicyRows(rows);
+}
+
+function filterPolicyRowsForCurrentRun(policyRows, placementResults, newAdIds) {
+  const scopedAdIds = new Set([
+    ...(placementResults || []).map((result) => `${result.ad?.id || ""}`.trim()),
+    ...(newAdIds || []).map((adId) => `${adId || ""}`.trim())
+  ].filter(Boolean));
+
+  if (!scopedAdIds.size) return policyRows || [];
+  return (policyRows || []).filter((row) => scopedAdIds.has(`${row.ad_id || ""}`.trim()));
+}
+
+function selectLatestPolicyRows(rows) {
+  const latestByAdId = new Map();
+  for (const row of rows || []) {
+    const adId = `${row.ad_id || ""}`.trim();
+    if (!adId) continue;
+    const current = latestByAdId.get(adId);
+    if (!current || policyRowTimestamp(row) > policyRowTimestamp(current)) {
+      latestByAdId.set(adId, row);
+    }
+  }
+  return [...latestByAdId.values()];
+}
+
+function policyRowTimestamp(row) {
+  const value = row?.last_checked_at || row?.row_updated_at || row?.updated_at || "";
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 async function fetchAccountInfo(accountNumericId) {
@@ -131,6 +189,51 @@ async function fetchAccountInfo(accountNumericId) {
     clientName: row.Client || "",
     status: row.Status || ""
   };
+}
+
+async function fetchPolicyRuleIdsByPriority(priority) {
+  const { supabaseUrl, supabaseKey } = getSupabaseEnv();
+  const query = new URL(`${supabaseUrl}/rest/v1/policy_rules`);
+  query.searchParams.set("select", "id");
+  query.searchParams.set("priority", `eq.${priority}`);
+  query.searchParams.set("is_active", "eq.true");
+  const rows = await fetchSupabaseJson(query, supabaseKey, `priority ${priority} policy rules`);
+  return new Set(rows.map((row) => `${row.id || ""}`.trim()).filter(Boolean));
+}
+
+async function fetchDisplayIgnoredPolicyRuleIds() {
+  return new Set();
+}
+
+async function fetchClientDisplayIgnoredPolicyRuleIds(clientIds) {
+  const normalizedClientIds = unique(
+    (Array.isArray(clientIds) ? clientIds : [clientIds])
+      .map((clientId) => `${clientId || ""}`.trim())
+      .filter(Boolean)
+  );
+  if (!normalizedClientIds.length) return new Set();
+
+  const ruleIds = new Set();
+  const { supabaseUrl, supabaseKey } = getSupabaseEnv();
+
+  for (const clientId of normalizedClientIds) {
+    const query = new URL(`${supabaseUrl}/rest/v1/client_policy_rule_ignores`);
+    query.searchParams.set("select", "rule_id");
+    query.searchParams.set("client_id", `eq.${clientId}`);
+    query.searchParams.set("is_ignored", "eq.true");
+
+    try {
+      const rows = await fetchSupabaseJson(query, supabaseKey, "client policy rule ignores");
+      for (const row of rows || []) {
+        const ruleId = `${row.rule_id || ""}`.trim();
+        if (ruleId) ruleIds.add(ruleId);
+      }
+    } catch (error) {
+      console.warn(`Client policy rule ignores lookup skipped for ${clientId}: ${error.message}`);
+    }
+  }
+
+  return ruleIds;
 }
 
 function getSupabaseEnv() {
@@ -219,13 +322,16 @@ async function buildUnifiedAlert({
   generatedAt,
   placementResults,
   policyRows,
+  displaySuppressedPolicyRuleIds = new Set(),
+  clientSuppressedPolicyRuleIds = new Set(),
   metaAdByAdId,
   source = "",
-  newAdIds = []
+  newAdIds = [],
+  policyRunId = ""
 }) {
   const placementByAdId = buildPlacementByAdId(placementResults);
   const adMetaByAdId = buildAdMetaByAdId(placementResults, metaAdByAdId);
-  const policyByAdId = buildPolicyByAdId(policyRows);
+  const policyByAdId = buildPolicyByAdId(policyRows, displaySuppressedPolicyRuleIds);
   const allAdIds = unique([...policyByAdId.keys(), ...placementByAdId.keys()]);
   const newAdIdSet = new Set((newAdIds || []).map((id) => `${id}`.trim()).filter(Boolean));
   const groups = groupByCreative(allAdIds, policyByAdId, placementByAdId, adMetaByAdId, newAdIdSet);
@@ -279,6 +385,9 @@ async function buildUnifiedAlert({
       placementCreativeCount,
       threadCount: openGroups.length,
       resolvedIssueGroupCount: actionableGroups.length - openGroups.length,
+      displaySuppressedPolicyRuleCount: displaySuppressedPolicyRuleIds.size,
+      clientSuppressedPolicyRuleCount: clientSuppressedPolicyRuleIds.size,
+      policyRunId: policyRunId || null,
       source,
       newAdIds: [...newAdIdSet],
       newAdCount: unique(openGroups.flatMap((group) => group.newAdIds || [])).length
@@ -299,7 +408,7 @@ async function buildUnifiedAlert({
         threadCount: openGroups.length
       })
     },
-    threadMessages: actionableGroups.map((group) => ({
+    threadMessages: openGroups.map((group) => ({
       key: group.key,
       details: buildStructuredDetails(group),
       text: buildThreadText(group),
@@ -331,6 +440,8 @@ function buildAdMetaByAdId(results, metaAdByAdId = new Map()) {
       ...existing,
       adName: result.ad?.name || "",
       creativeId: result.ad?.creativeId || "",
+      creativeThumbnailUrl: existing.creativeThumbnailUrl || result.ad?.creativeThumbnailUrl || "",
+      creativeImageUrl: existing.creativeImageUrl || result.ad?.creativeImageUrl || "",
       adSetName: result.ad?.adsetName || "",
       campaignName: result.ad?.campaignName || ""
     });
@@ -348,7 +459,10 @@ async function fetchMetaAdMetaByAdId(adIds) {
     const query = new URL(`https://graph.facebook.com/${apiVersion}/`);
     query.searchParams.set("access_token", token);
     query.searchParams.set("ids", chunk.join(","));
-    query.searchParams.set("fields", "id,name,creative{id,name},adset{id,name},campaign{id,name}");
+    query.searchParams.set(
+      "fields",
+      "id,name,creative{id,name,thumbnail_url,image_url},adset{id,name},campaign{id,name}"
+    );
 
     const response = await fetch(query);
     const payload = await response.json().catch(() => ({}));
@@ -363,12 +477,57 @@ async function fetchMetaAdMetaByAdId(adIds) {
         adName: ad?.name || "",
         creativeId: ad?.creative?.id || "",
         creativeName: ad?.creative?.name || "",
+        creativeThumbnailUrl: ad?.creative?.thumbnail_url || "",
+        creativeImageUrl: ad?.creative?.image_url || "",
         adSetName: ad?.adset?.name || "",
         campaignName: ad?.campaign?.name || ""
       });
     }
   }
+  await hydrateHighResolutionCreativeThumbnails(out);
   return out;
+}
+
+async function hydrateHighResolutionCreativeThumbnails(
+  adMetaByAdId,
+  width = 1080,
+  height = 1350
+) {
+  const token = process.env.META_ACCESS_TOKEN;
+  const apiVersion = process.env.META_API_VERSION || "v22.0";
+  const creativeIds = unique(
+    [...adMetaByAdId.values()]
+      .map((meta) => meta.creativeId)
+      .filter(Boolean)
+  );
+  if (!token || !creativeIds.length) return;
+
+  const thumbnailByCreativeId = new Map();
+  for (const chunk of chunks(creativeIds, 40)) {
+    const query = new URL(`https://graph.facebook.com/${apiVersion}/`);
+    query.searchParams.set("access_token", token);
+    query.searchParams.set("ids", chunk.join(","));
+    query.searchParams.set("fields", "id,thumbnail_url,image_url");
+    query.searchParams.set("thumbnail_width", String(width));
+    query.searchParams.set("thumbnail_height", String(height));
+
+    const response = await fetch(query);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.error) {
+      const message = payload.error?.message || response.statusText;
+      console.warn(`Meta high-res thumbnail fetch skipped: ${message}`);
+      continue;
+    }
+
+    for (const [creativeId, creative] of Object.entries(payload)) {
+      if (creative?.thumbnail_url) thumbnailByCreativeId.set(creativeId, creative.thumbnail_url);
+    }
+  }
+
+  for (const meta of adMetaByAdId.values()) {
+    const highResThumbnailUrl = thumbnailByCreativeId.get(meta.creativeId);
+    if (highResThumbnailUrl) meta.creativeThumbnailUrl = highResThumbnailUrl;
+  }
 }
 
 function collectAdIds(policyRows, placementResults) {
@@ -378,12 +537,15 @@ function collectAdIds(policyRows, placementResults) {
   ].filter(Boolean));
 }
 
-function buildPolicyByAdId(rows) {
+function buildPolicyByAdId(rows, displaySuppressedPolicyRuleIds = new Set()) {
   const map = new Map();
   for (const row of rows || []) {
     const adId = `${row.ad_id || ""}`.trim();
     if (!adId) continue;
-    const normalized = extractNormalized(row.ad_text_assessment_result);
+    const normalized = applyPolicyDisplayOverrides(
+      extractNormalized(row.ad_text_assessment_result),
+      displaySuppressedPolicyRuleIds
+    );
     const policyRisk = policyRiskLabel(normalized);
     const spellingErrors = extractSpellErrors(normalized);
     const policyFlags = extractPolicyFlags(normalized);
@@ -399,6 +561,85 @@ function buildPolicyByAdId(rows) {
     });
   }
   return map;
+}
+
+function applyPolicyDisplayOverrides(normalized, displaySuppressedPolicyRuleIds) {
+  if (!normalized || typeof normalized !== "object") return {};
+  const policyV2 = normalized.policy_v2;
+  if (!policyV2 || typeof policyV2 !== "object") return normalized;
+
+  const hasNestedCaptionAnalysis =
+    policyV2.caption_analysis && typeof policyV2.caption_analysis === "object";
+  const captionAnalysis = hasNestedCaptionAnalysis
+    ? policyV2.caption_analysis
+    : policyV2;
+  const issues = Array.isArray(captionAnalysis.issues)
+    ? captionAnalysis.issues
+    : [];
+  const visibleIssues = issues.filter((issue) => {
+    const ruleId = `${issue?.rule_id || ""}`.trim();
+    return !displaySuppressedPolicyRuleIds.has(ruleId);
+  });
+
+  if (visibleIssues.length === issues.length) return normalized;
+
+  const failingIssues = visibleIssues.filter(
+    (issue) => `${issue?.verdict || ""}`.trim().toLowerCase() === "fail"
+  );
+  const verdict = failingIssues.length ? "fail" : "pass";
+  const summary =
+    captionAnalysis.summary && typeof captionAnalysis.summary === "object"
+      ? {
+          ...captionAnalysis.summary,
+          overall_verdict: verdict,
+          issue_count: visibleIssues.length,
+          fail_count: failingIssues.length
+        }
+      : captionAnalysis.summary;
+  const visibleCaptionAnalysis = {
+    ...captionAnalysis,
+    issues: visibleIssues,
+    overall_result: verdict,
+    ...(summary ? { summary } : {})
+  };
+  const visiblePolicyV2 = hasNestedCaptionAnalysis
+    ? { ...policyV2, caption_analysis: visibleCaptionAnalysis }
+    : visibleCaptionAnalysis;
+  const redFlags = unique(
+    failingIssues
+      .map(
+        (issue) =>
+          issue.flagged_text ||
+          issue.issue_title ||
+          issue.short_title ||
+          issue.category ||
+          ""
+      )
+      .filter(Boolean)
+  );
+  const fixNotes = unique(
+    failingIssues
+      .map((issue) => issue.fix_note || issue.issue_detail || "")
+      .filter(Boolean)
+  );
+  const existingMatches =
+    normalized.matches && typeof normalized.matches === "object"
+      ? normalized.matches
+      : {};
+
+  return {
+    ...normalized,
+    verdict,
+    matches: {
+      ...existingMatches,
+      red: redFlags,
+      yellow: Array.isArray(existingMatches.yellow)
+        ? existingMatches.yellow
+        : []
+    },
+    fix_notes: fixNotes,
+    policy_v2: visiblePolicyV2
+  };
 }
 
 function extractNormalized(value) {
@@ -484,6 +725,18 @@ function groupByCreative(adIds, policyByAdId, placementByAdId, adMetaByAdId, new
     }
     group.creativeNames = unique([...group.creativeNames, name].filter(Boolean));
     group.creativeIds = unique([...group.creativeIds, creativeId].filter(Boolean));
+    if (!group.media.creativeImageUrl) {
+      group.media.creativeImageUrl =
+        representativePlacement?.ad?.creativeImageUrl ||
+        adMeta.creativeImageUrl ||
+        "";
+    }
+    if (!group.media.thumbnailUrl) {
+      group.media.thumbnailUrl =
+        representativePlacement?.ad?.creativeThumbnailUrl ||
+        adMeta.creativeThumbnailUrl ||
+        "";
+    }
     if (policy) {
       group.policyRows.push(policy);
       group.policy.hasAction = group.policy.hasAction || policy.policyHasAction;
@@ -502,6 +755,9 @@ function groupByCreative(adIds, policyByAdId, placementByAdId, adMetaByAdId, new
       ]);
       if (!group.imageResult) {
         group.imageResult = placements.find((placement) => placement.screenshotUrl) || placements[0];
+      }
+      if (!group.media.screenshotUrl) {
+        group.media.screenshotUrl = placements.find((placement) => placement.screenshotUrl)?.screenshotUrl || "";
       }
     }
 
@@ -643,6 +899,7 @@ function newEmptyGroup({ key, creativeName, creativeId, representativeAdId }) {
     originalText: "",
     revisedText: "",
     imageResult: null,
+    media: { screenshotUrl: "", thumbnailUrl: "", creativeImageUrl: "" },
     finding: "",
     policyRisk: "N/A",
     issueType: "none",
@@ -974,6 +1231,17 @@ function buildStructuredDetails(group) {
     resolution: group.resolution,
     isNew: Boolean(group.isNew),
     newAdIds: group.newAdIds || [],
+    media: {
+      screenshotUrl: group.media?.screenshotUrl || group.imageResult?.screenshotUrl || "",
+      creativeImageUrl: group.media?.creativeImageUrl || "",
+      thumbnailUrl: group.media?.thumbnailUrl || "",
+      imageUrl:
+        group.media?.creativeImageUrl ||
+        group.media?.thumbnailUrl ||
+        group.media?.screenshotUrl ||
+        group.imageResult?.screenshotUrl ||
+        ""
+    },
     originalText: group.originalText || "",
     revisedText: group.revisedText || "",
     policy: {

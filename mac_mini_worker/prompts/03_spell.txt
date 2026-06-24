@@ -1,0 +1,172 @@
+SPELL / WORDING CHECK
+
+Spell checking is separate from policy compliance.
+
+Spelling findings must be reported only inside spell_check.
+Policy findings must be reported only inside policy_check.
+
+Do not put spelling-only findings inside policy_check.
+Do not put policy compliance failures inside spell_check.
+
+Spelling may affect the top-level overall_result according to the output schema:
+
+* If clear spelling issues are found, overall_result must be "fail".
+* If clear policy failures are found, overall_result must be "fail".
+* overall_result may be "pass" only when there are no clear spelling issues and no policy failures.
+
+Do not treat slang, informal wording, emoji, tone, marketing style, or casual grammar as spelling issues.
+
+THAI VISUAL SPELLING TOLERANCE
+
+For Thai text, be conservative.
+Do not flag a word as misspelled if it looks visually understandable and is commonly used in informal ad copy, even if its underlying Unicode characters or orthographic construction may be non-standard.
+
+Do not flag visually equivalent or near-equivalent Thai character compositions as spelling errors when a normal reader would understand the word.
+
+Examples:
+
+* Different Unicode composition that visually resembles the intended Thai vowel or mark should not be treated as a spelling error.
+* นิคหิต / ำ-style composition differences should not be flagged if the visible word looks correct or understandable.
+* Two "เ" characters used visually like "แ" should not be flagged when the intended reading is clear.
+* Repeated vowels, tone marks, or letters used for emphasis should not be flagged when they are stylistic, e.g. "มากกก", "ดี๊ดี", "จึ้งงง".
+
+THAI SLANG AND INFORMAL LANGUAGE
+
+Do not flag Thai slang, youth language, casual spelling, internet language, or colloquial ad wording as spelling errors.
+
+Examples that should generally not be flagged:
+
+* มั้ย
+* จี๊ด
+* เริ่ด
+* จึ้ง
+* ปัง
+* นัว
+* ฟิน
+* จอย
+* ชิล
+* ชิค
+* ว้าว
+* ตัวแม่
+* ต๊าช
+* เกินต้าน
+* แบบใด
+* 555
+* งับ / ค้าบ / ค่า / น้า
+
+Informal wording is allowed unless it creates a separate policy compliance issue under an applicable RULES_BLOCK rule.
+
+PROPER NOUN AND BRAND NAME CAUTION
+
+Be very careful with proper nouns.
+
+Do not flag as misspelled:
+
+* brand names
+* product names
+* campaign names
+* model names
+* person names
+* clinic / hospital / company / store names
+* handles, usernames, hashtags, URLs, LINE IDs, email addresses
+* foreign words, transliteration, or intentionally stylized spelling
+* official product names that use unusual spelling
+
+If a word may be a proper noun or intentional brand spelling, do not flag it.
+Only flag it if the error is clearly a normal-language typo and not likely to be intentional naming or stylization.
+
+WHAT COUNTS AS A SPELLING ISSUE
+
+Only report spelling issues when the error is clear, visible, and likely unintended.
+
+Valid spelling issue types may include:
+
+* obvious misspelling
+* obvious typo
+* obvious missing character
+* obvious extra character
+* obvious word spacing problem that changes readability
+* obvious duplicated word by accident
+* obvious wrong word choice caused by typo
+* obvious OCR artifact
+
+Do not report:
+
+* stylistic spelling
+* slang
+* emoji usage
+* casual grammar
+* sentence fragments
+* marketing tone
+* abbreviations
+* punctuation style
+* line break style
+* hashtag style
+* capitalization style
+* Thai visual/Unicode composition differences that remain readable
+* proper nouns or brand stylization
+
+SPELL RESULT LOGIC
+
+If any clear spelling issue is found:
+
+* spell_check.has_spelling_issues must be true.
+* spell_check.items must include only clear, visible, likely unintended spelling/wording issues.
+* overall_result must be "fail" even if no policy violation is found.
+
+If no clear spelling issue is found:
+
+* spell_check.has_spelling_issues must be false.
+* spell_check.items must be [].
+
+SPELLING FIX PRINCIPLE
+
+When applying spelling fixes into revised_message:
+
+* Start from original_message.
+* Apply only clear spelling/wording fixes.
+* Keep meaning identical.
+* Preserve tone, slang, emoji, line breaks, hashtags, CTA, price, product name, brand name, and formatting as much as possible.
+* Do not polish or rewrite marketing copy beyond fixing clear errors.
+* Do not turn casual language into formal language unless the original clearly intended formal wording.
+* Do not alter policy-relevant wording unless policy rewrite also requires it.
+* Do not introduce new claims, new evidence, new guarantees, or new persuasive wording.
+
+MESSAGE REVISION ORDER
+
+When producing revised_message, apply changes in this order:
+
+1. Start from original_message.
+2. Apply only clear spelling/wording fixes.
+3. If there are no policy failures, revised_message is original_message with those spelling fixes (or original_message exactly when there are no spelling issues).
+4. If there are policy failures, revised_message must be a policy-safe rewrite of original_message that also includes those spelling fixes.
+5. revised_message must not reintroduce spelling errors or the same policy risk concept.
+
+Do not use revised_message for unnecessary polishing.
+Only apply clear spelling fixes and necessary policy-safe rewrites.
+
+SPELL VS POLICY SEPARATION
+
+spell_check is only for:
+
+* spelling
+* typo
+* spacing
+* grammar
+* punctuation
+* capitalization
+* duplicate_word
+* ocr_artifact
+
+policy_check is only for concrete policy compliance failures supported by applicable RULES_BLOCK rules.
+
+A spelling-only issue may make overall_result = "fail", but it must still stay inside spell_check only.
+
+A policy failure may make overall_result = "fail", but it must still stay inside policy_check only.
+
+UNCERTAINTY RULE
+
+When unsure whether something is a typo, slang, brand name, stylistic spelling, or intentional wording, do not flag it.
+
+Uncertain spelling concerns must not affect overall_result.
+Put a short note in spell_check.notes only if useful.

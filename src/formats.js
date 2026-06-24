@@ -36,6 +36,6 @@ export function parseFormats(value) {
   if (!value) return DEFAULT_FORMATS;
   return value
     .split(",")
-    .map((format) => format.trim())
+    .map((format) => format.trim().replace(/^AD_FORMATS=/i, ""))
     .filter(Boolean);
 }

@@ -1,0 +1,263 @@
+STRICT OUTPUT
+
+Return valid JSON only.
+Do not use markdown.
+Do not add any explanation outside JSON.
+
+Return JSON in exactly this shape:
+
+{
+    "original_message": "string",
+    "revised_message": "string",
+    "revised_image_text": {
+        "headlines": ["string"],
+        "subheadlines": ["string"],
+        "descriptions": ["string"],
+        "ctas": ["string"],
+        "other_text": ["string"]
+    },
+    "overall_result": "pass|fail",
+    "summary": {
+        "overall_verdict": "pass|fail",
+        "display_title": "string",
+        "display_subtitle": "string",
+        "spell_issue_count": 0,
+        "policy_fail_count": 0,
+        "total_issue_count": 0,
+        "executive_summary": "string"
+    },
+    "spell_check": {
+        "has_spelling_issues": false,
+        "items": [
+            {
+                "order_index": 1,
+                "original_text": "string",
+                "suggested_text": "string",
+                "error_type": "spelling|typo|spacing|grammar|punctuation|capitalization|duplicate_word|ocr_artifact",
+                "confidence": "high|medium",
+                "explanation": "string"
+            }
+        ],
+        "notes": ["string"]
+    },
+    "policy_context": {
+        "business_context": "string",
+        "primary_policy_family": "string",
+        "source_priority_used": ["RULES_BLOCK", "QUICK_REFERENCE_BLOCK"],
+        "approval_or_notice_checklist": ["string"],
+        "required_disclosures_or_warnings": ["string"],
+        "platform_special_checks": ["string"],
+        "quick_do_not_do": ["string"],
+        "quick_best_practice": ["string"],
+        "reviewer_notes": ["string"],
+        "fallback_major_laws_or_policies": ["string"]
+    },
+    "policy_check": [
+        {
+            "order_index": 1,
+            "flagged_text": "string",
+            "verdict": "fail",
+            "basis_type": "explicit_rule|strong_rule_support",
+            "confidence": "high|medium",
+            "source_type": "string",
+            "rule_id": "string",
+            "policy_family": "string",
+            "law_name": "string",
+            "gazette_or_announcement": "string",
+            "reference_locator": "string",
+            "reference_section": "string",
+            "display_reference": "string",
+            "category": "string",
+            "subcategory": "string",
+            "issue_title": "string",
+            "issue_detail": "string",
+            "fix_note": "string",
+            "additional_references": [
+                {
+                    "law_name": "string",
+                    "gazette_or_announcement": "string",
+                    "reference_locator": "string",
+                    "display_reference": "string"
+                }
+            ]
+        }
+    ]
+}
+
+TOP-LEVEL RESULT RULE
+
+overall_result must be "fail" if either:
+
+1. spell_check.has_spelling_issues is true, or
+2. policy_check contains at least one item.
+
+overall_result must be "pass" only when:
+
+1. spell_check.has_spelling_issues is false, and
+2. policy_check is an empty array.
+
+summary.overall_verdict must always equal overall_result.
+
+COUNT RULES
+
+summary.spell_issue_count must equal the number of items in spell_check.items.
+
+summary.policy_fail_count must equal the number of items in policy_check.
+
+summary.total_issue_count must equal:
+spell_issue_count + policy_fail_count.
+
+POLICY_CHECK RULES
+
+policy_check must always be an array.
+
+policy_check must contain only concrete policy compliance failures.
+
+Do not put spelling, typo, grammar, punctuation, capitalization, duplicate_word, or OCR artifact findings inside policy_check.
+
+Do not put advisory, cautionary, speculative, uncertain, non-applicable, or pass items inside policy_check.
+
+If no concrete policy failure is found, return:
+"policy_check": []
+
+Every item in policy_check must have:
+"verdict": "fail"
+
+Do not output policy_check verdicts other than "fail".
+
+SPELL_CHECK RULES
+
+spell_check.items must always be an array.
+
+spell_check.items must contain only clear spelling or wording issues.
+
+Do not put policy compliance failures inside spell_check.items.
+
+If no clear spelling issue is found, return:
+"has_spelling_issues": false,
+"items": []
+
+MESSAGE REVISION RULES
+
+original_message must preserve INPUT_MESSAGE exactly.
+
+revised_message is the single final ready-to-use message after applying:
+
+1. clear spelling fixes, then
+2. necessary policy-safe rewrites, if any.
+
+If there are spelling issues but no policy failures:
+
+* revised_message must be original_message with only clear spelling/wording fixes applied.
+
+If there are policy failures:
+
+* revised_message must be a policy-safe rewrite of original_message that also includes any clear spelling fixes.
+* revised_message must remove or neutralize the failed policy risk concepts.
+* revised_message must not introduce new claims, new evidence, new approvals, new guarantees, or new risky wording.
+
+If there are no spelling issues and no policy failures:
+
+* revised_message must equal original_message exactly.
+
+REVISED IMAGE TEXT RULES
+
+revised_image_text is the structured, ready-to-use breakdown of the corrected ON-IMAGE text.
+
+Populate revised_image_text ONLY for image (visual) analysis, i.e. when an image is attached to this request and INPUT_MESSAGE is the text extracted from that image.
+
+For text-only (caption) analysis, set revised_image_text to null.
+
+When populating revised_image_text for an image:
+
+* Break the final corrected on-image text (after applying clear spelling fixes and any necessary policy-safe rewrites, exactly like revised_message) into these arrays in visual reading order:
+  * headlines: main headline lines
+  * subheadlines: secondary headline lines
+  * descriptions: body/description lines, product names, feature lines, prices
+  * ctas: call-to-action lines
+  * other_text: everything else, including legally required warnings, disclaimers, fine print, and approval/registration numbers (e.g. ฆอ.)
+* Use one array entry per visible line or element. Keep arrays empty when a category has no content.
+* Any warning or disclaimer that policy requires on the image must appear in other_text.
+* revised_image_text must stay consistent with revised_message (same corrected wording).
+
+LANGUAGE RULE FOR OUTPUT FIELDS
+
+JSON keys and enum values must stay in English exactly as specified.
+
+For Thai INPUT_MESSAGE, write user-facing text fields in natural Thai wherever possible, including:
+
+* summary.display_title
+* summary.display_subtitle
+* summary.executive_summary
+* spell_check.explanation
+* spell_check.notes
+* policy_context fields
+* policy_check.issue_title
+* policy_check.issue_detail
+* policy_check.fix_note
+* policy_check.category
+* policy_check.subcategory
+
+Keep these values unchanged:
+
+* rule_id
+* enum values
+* URLs
+* hashtags
+* handles
+* brand names
+* product names
+* official law names
+* official policy names
+* exact flagged_text copied from INPUT_MESSAGE
+
+REFERENCE RULES
+
+For policy_check items, use only reference information supplied in RULES_BLOCK.
+
+Do not invent:
+
+* law names
+* policy names
+* rule IDs
+* section numbers
+* article numbers
+* announcement numbers
+* gazette details
+* platform policy headings
+* source metadata
+
+If a field is unavailable, return an empty string for that field.
+
+display_reference must be assembled only from supplied source and locator fields when available.
+
+POLICY_CONTEXT RULES
+
+policy_context is for non-blocking reviewer guidance only.
+
+Use policy_context for:
+
+* business context
+* likely policy family
+* operational checks
+* approval or notice checklist
+* required disclosures or warnings that may matter for manual review
+* platform checks
+* best-practice notes
+* QUICK_REFERENCE_BLOCK-only concerns
+* general compliance cautions that are not enough to fail
+
+Do not put policy_context-only concerns inside policy_check.
+
+DEPRECATED FIELD NAMES
+
+Do not output these old or ambiguous top-level fields:
+
+* issues
+* quick_reference
+
+Use:
+
+* spell_check for spelling and wording findings
+* policy_context for non-blocking reviewer guidance
+* policy_check for concrete policy failures

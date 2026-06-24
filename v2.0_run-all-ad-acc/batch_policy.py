@@ -27,6 +27,7 @@ from meta_check_db_schema import STATUS_REJECTED, STATUS_VERIFIED, now_iso_bkk
 
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_OUT_DIR = BASE_DIR / "temp" / "batch_policy"
+DEFAULT_FORMAT_AUDIT_DIR = BASE_DIR.parent / "logs" / "policy-output-format"
 COMPLETED_STATES = {
     "JOB_STATE_SUCCEEDED",
     "JOB_STATE_FAILED",
@@ -50,6 +51,11 @@ def main() -> int:
     submit = sub.add_parser("submit", help="Create a policy-check batch job from one account.")
     submit.add_argument("--client-id", required=True)
     submit.add_argument("--account", required=True, help="act_<id> or numeric ad account id")
+    submit.add_argument(
+        "--run-id",
+        default="",
+        help="Optional UUID supplied by the orchestrator for exact downstream run matching.",
+    )
     submit.add_argument(
         "--new-ad-ids",
         default="",
@@ -90,7 +96,7 @@ def submit_batch(args: argparse.Namespace) -> int:
     api_key = require_env("GEMINI_API_KEY")
     account_act = normalize_act_id(args.account)
     account_num = int(account_act.replace("act_", ""))
-    run_id = str(uuid.uuid4())
+    run_id = str(uuid.UUID(args.run_id)) if args.run_id else str(uuid.uuid4())
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -113,8 +119,14 @@ def submit_batch(args: argparse.Namespace) -> int:
         uuid.UUID(run_id),
     )
     fetch_map = {norm["ad_id"]: (ad, cr) for norm, ad, cr in fetched if norm.get("ad_id")}
-    text_result_lookup = verification_flow._build_text_result_lookup(snapshot_after)
-    text_groups = verification_flow._client_text_groups_by_caption(args.client_id, snapshot_after)
+    fetched_ad_ids = set(fetch_map)
+    snapshot_for_run = {
+        ad_id: rec
+        for ad_id, rec in snapshot_after.items()
+        if ad_id in fetched_ad_ids
+    }
+    text_result_lookup = verification_flow._build_text_result_lookup(snapshot_for_run)
+    text_groups = verification_flow._client_text_groups_by_caption(args.client_id, snapshot_for_run)
 
     gemini_groups = []
     reuse_groups = []
@@ -125,6 +137,7 @@ def submit_batch(args: argparse.Namespace) -> int:
             gemini_groups.append((text_key, recs, rep))
             continue
         if not verification_flow._text_group_needs_work(recs, snapshot_before, text_key, text_result_lookup):
+            reuse_groups.append((text_key, recs))
             continue
         queued = [r for r in recs if verification_flow._should_queue_text_assessment(r, snapshot_before)]
         if queued and text_key not in text_result_lookup:
@@ -183,7 +196,13 @@ def submit_batch(args: argparse.Namespace) -> int:
                 "records": recs,
             }
 
-    reused_records = persist_reuse_groups(reuse_groups, text_result_lookup, run_id)
+    reused_records = persist_reuse_groups(
+        reuse_groups,
+        text_result_lookup,
+        run_id,
+        client_id=args.client_id,
+        account_num=account_num,
+    )
 
     state = {
         "kind": "batch_policy_state",
@@ -192,6 +211,7 @@ def submit_batch(args: argparse.Namespace) -> int:
         "client_id": args.client_id,
         "account": account_act,
         "account_num": account_num,
+        "fetched_ad_ids": sorted(fetched_ad_ids),
         "model": policy_rule_checker.MODEL_ID,
         "request_count": len(mapping),
         "reuse_group_count": len(reuse_groups),
@@ -339,6 +359,9 @@ def persist_reuse_groups(
     reuse_groups: list[tuple[str, list[dict[str, Any]]]],
     text_result_lookup: dict[str, tuple[str, dict]],
     run_id: str,
+    *,
+    client_id: str,
+    account_num: int,
 ) -> int:
     records = []
     checked = now_iso_bkk()
@@ -354,12 +377,19 @@ def persist_reuse_groups(
             records.append(rec)
     if records:
         supabase_db_helper.upsert_meta_check_db_rows(records, run_id)
+        supabase_db_helper.insert_historical_run_rows(
+            records,
+            run_id,
+            client_id,
+            account_num,
+        )
     return len(records)
 
 
 def parse_and_persist_results(state: dict[str, Any], output_path: Path, *, persist: bool) -> dict[str, Any]:
     mapping = state.get("mapping") or {}
     rows_to_persist = []
+    audit_entries = []
     ok_count = 0
     error_count = 0
     checked = now_iso_bkk()
@@ -380,6 +410,7 @@ def parse_and_persist_results(state: dict[str, Any], output_path: Path, *, persi
             }
             final_status = STATUS_REJECTED
         else:
+            raw_model_text = extract_batch_response_text(item)
             parsed = parse_batch_response_json(item)
             if parsed is None:
                 ar = {
@@ -404,6 +435,33 @@ def parse_and_persist_results(state: dict[str, Any], output_path: Path, *, persi
                     "original_caption": text,
                     "batch_key": key,
                 }
+        audit_entries.append(
+            {
+                "logged_at": now_iso_bkk(),
+                "run_id": state.get("run_id"),
+                "client_id": state.get("client_id"),
+                "account": state.get("account"),
+                "account_num": state.get("account_num"),
+                "batch_key": key,
+                "representative_ad_id": group.get("representative_ad_id") or "",
+                "representative_ad_name": group.get("representative_ad_name") or "",
+                "affected_rows": [
+                    {
+                        "ad_id": rec.get("ad_id"),
+                        "creative_id": rec.get("creative_id"),
+                    }
+                    for rec in group.get("records") or []
+                ],
+                "input_caption": group.get("text_key") or "",
+                "policy_rule_count": group.get("policy_rule_count"),
+                "policy_rule_retrieval": group.get("policy_rule_retrieval"),
+                "raw_model_text": raw_model_text if not item.get("error") else "",
+                "parsed_prompt_output": parsed if not item.get("error") else None,
+                "normalized_output": ar.get("normalized"),
+                "final_status": final_status,
+                "assessment_result_before_persist": ar,
+            }
+        )
         for rec in group.get("records") or []:
             rec["checked_at"] = checked
             rec["text_check_status"] = final_status
@@ -411,6 +469,7 @@ def parse_and_persist_results(state: dict[str, Any], output_path: Path, *, persi
             rows_to_persist.append(rec)
         ok_count += 1
 
+    audit_log_path = write_format_audit_log(state, audit_entries)
     if persist and rows_to_persist:
         supabase_db_helper.upsert_meta_check_db_rows(rows_to_persist, state.get("run_id"))
         supabase_db_helper.insert_historical_run_rows(
@@ -423,23 +482,51 @@ def parse_and_persist_results(state: dict[str, Any], output_path: Path, *, persi
         "parsed_groups": ok_count,
         "unmatched_or_error_lines": error_count,
         "persisted_rows": len(rows_to_persist) if persist else 0,
+        "format_audit_log": str(audit_log_path) if audit_log_path else None,
     }
 
 
 def parse_batch_response_json(item: dict[str, Any]) -> Optional[dict[str, Any]]:
-    response = item.get("response") or item.get("inlineResponse") or item
-    parts = (((response.get("candidates") or [{}])[0].get("content") or {}).get("parts") or [])
-    full_text = "\n".join(
-        policy_rule_checker.to_clean_string(part.get("text"))
-        for part in parts
-        if isinstance(part, dict)
-    ).strip()
+    full_text = extract_batch_response_text(item)
     if not full_text:
         return None
     try:
         return policy_rule_checker.parse_json_lenient(full_text)
     except Exception:
         return None
+
+
+def extract_batch_response_text(item: dict[str, Any]) -> str:
+    response = item.get("response") or item.get("inlineResponse") or item
+    parts = (((response.get("candidates") or [{}])[0].get("content") or {}).get("parts") or [])
+    return "\n".join(
+        policy_rule_checker.to_clean_string(part.get("text"))
+        for part in parts
+        if isinstance(part, dict)
+    ).strip()
+
+
+def write_format_audit_log(
+    state: dict[str, Any],
+    entries: list[dict[str, Any]],
+) -> Optional[Path]:
+    if not entries:
+        return None
+    audit_dir = Path(
+        os.environ.get("POLICY_FORMAT_AUDIT_DIR", str(DEFAULT_FORMAT_AUDIT_DIR))
+    )
+    audit_dir.mkdir(parents=True, exist_ok=True)
+    run_id = str(state.get("run_id") or "unknown")
+    audit_path = audit_dir / f"run-{run_id}.jsonl"
+    audit_path.write_text(
+        "".join(
+            json.dumps(entry, ensure_ascii=False) + "\n"
+            for entry in entries
+        ),
+        encoding="utf-8",
+    )
+    print(f"policy_format_audit_log path={audit_path} entries={len(entries)}")
+    return audit_path
 
 
 def extract_result_key(item: dict[str, Any]) -> str:
