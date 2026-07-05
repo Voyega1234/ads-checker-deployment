@@ -72,7 +72,7 @@ GOOGLE_CLOUD_PROJECT = (
     or os.getenv("GCP_PROJECT_ID")
     or ""
 )
-GOOGLE_CLOUD_LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION") or os.getenv("CLOUD_RUN_REGION") or "us-central1"
+GOOGLE_CLOUD_LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION") or os.getenv("CLOUD_RUN_REGION") or "global"
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = (
     os.getenv("SUPABASE_SERVICE_ROLE_KEY")
@@ -152,8 +152,17 @@ def create_adc_gemini_client(genai_module):
         "yes",
         "on",
     }
+    use_enterprise = os.getenv("GOOGLE_GENAI_USE_ENTERPRISE", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
     old_gemini_api_key = os.environ.pop("GEMINI_API_KEY", None)
     old_google_api_key = os.environ.pop("GOOGLE_API_KEY", None)
+    old_use_enterprise = os.environ.get("GOOGLE_GENAI_USE_ENTERPRISE")
+    old_project = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    old_location = os.environ.get("GOOGLE_CLOUD_LOCATION")
     try:
         if use_vertexai:
             if not GOOGLE_CLOUD_PROJECT:
@@ -163,12 +172,27 @@ def create_adc_gemini_client(genai_module):
                 project=GOOGLE_CLOUD_PROJECT,
                 location=GOOGLE_CLOUD_LOCATION,
             )
+        if not use_enterprise:
+            os.environ["GOOGLE_GENAI_USE_ENTERPRISE"] = "True"
+        if GOOGLE_CLOUD_PROJECT:
+            os.environ["GOOGLE_CLOUD_PROJECT"] = GOOGLE_CLOUD_PROJECT
+        os.environ["GOOGLE_CLOUD_LOCATION"] = GOOGLE_CLOUD_LOCATION
         return genai_module.Client()
     finally:
         if old_gemini_api_key is not None:
             os.environ["GEMINI_API_KEY"] = old_gemini_api_key
         if old_google_api_key is not None:
             os.environ["GOOGLE_API_KEY"] = old_google_api_key
+        restore_optional_env("GOOGLE_GENAI_USE_ENTERPRISE", old_use_enterprise)
+        restore_optional_env("GOOGLE_CLOUD_PROJECT", old_project)
+        restore_optional_env("GOOGLE_CLOUD_LOCATION", old_location)
+
+
+def restore_optional_env(name: str, value: str | None) -> None:
+    if value is None:
+        os.environ.pop(name, None)
+    else:
+        os.environ[name] = value
 
 
 def get_supabase():
