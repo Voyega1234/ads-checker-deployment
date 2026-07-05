@@ -17,6 +17,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 POLICY_DIR = PROJECT_ROOT / "v2.0_run-all-ad-acc"
 SERVICE_ACCOUNT_PATH = POLICY_DIR / "ai-sheet-manager-service-account.json"
+DEFAULT_ADC_PATH = Path.home() / ".config" / "gcloud" / "application_default_credentials.json"
 
 
 REQUIRED_FILES = [
@@ -39,7 +40,6 @@ REQUIRED_FILES = [
 
 ENV_GROUPS = [
     ("META_ACCESS_TOKEN", ["META_ACCESS_TOKEN"]),
-    ("GEMINI_API_KEY", ["GEMINI_API_KEY"]),
     ("SUPABASE_URL", ["SUPABASE_URL", "VITE_SUPABASE_URL"]),
     ("SUPABASE_SERVICE_KEY", ["SUPABASE_SERVICE_KEY", "VITE_SUPABASE_SERVICE_KEY", "SUPABASE_KEY"]),
 ]
@@ -122,6 +122,7 @@ def check_env(errors: list[str], require_slack: bool) -> None:
     for label, names in ENV_GROUPS:
         if not any(os.environ.get(name) for name in names):
             errors.append(f"Missing env: {label} ({' or '.join(names)})")
+    check_gemini_auth(errors)
     if require_slack and not (os.environ.get("SLACK_BOT_TOKEN") or os.environ.get("SLACK_BOT_OAUTH")):
         errors.append("Missing env: SLACK_BOT_TOKEN or SLACK_BOT_OAUTH")
     if require_slack and not os.environ.get("REPORT_VIEWER_URL"):
@@ -137,6 +138,26 @@ def check_policy_secret_mount(messages: list[str]) -> None:
             "Google service account JSON not found at "
             "v2.0_run-all-ad-acc/ai-sheet-manager-service-account.json. "
             "For Cloud Run, mount it as a secret at that exact path."
+        )
+
+
+def check_gemini_auth(errors: list[str]) -> None:
+    mode = os.environ.get("GEMINI_AUTH_MODE", "adc").strip().lower()
+    if mode in {"api-key", "api_key", "apikey"}:
+        if not os.environ.get("GEMINI_API_KEY"):
+            errors.append("Missing env: GEMINI_API_KEY (required when GEMINI_AUTH_MODE=api_key)")
+        return
+    if mode not in {"adc", "oauth", "application-default", "application_default_credentials"}:
+        errors.append(f"Unsupported GEMINI_AUTH_MODE: {mode}")
+        return
+
+    credentials_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "").strip()
+    if credentials_path and not Path(credentials_path).exists():
+        errors.append(f"GOOGLE_APPLICATION_CREDENTIALS does not exist: {credentials_path}")
+    if not credentials_path and not DEFAULT_ADC_PATH.exists() and not shutil.which("gcloud"):
+        errors.append(
+            "Gemini ADC auth needs GOOGLE_APPLICATION_CREDENTIALS, the default ADC file, "
+            "or gcloud with `gcloud auth application-default login`."
         )
 
 

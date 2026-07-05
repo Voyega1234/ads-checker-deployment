@@ -140,13 +140,20 @@ For Mac mini:
 
 ```bash
 cd /Users/convertcake/Desktop/ads-checker-deployment
+gcloud auth application-default login
 TRIGGER_RUNNER=local \
+GEMINI_AUTH_MODE=adc \
+GOOGLE_CLOUD_PROJECT='<gcp-project-id>' \
 RUN_TRIGGER_TOKEN='<secret>' \
 REPORT_VIEWER_URL='https://report-viewer-theta.vercel.app/report-viewer' \
 MAX_CONCURRENT_RUNS=1 \
 PORT=8080 \
 node production/api-trigger/server.js
 ```
+
+`GEMINI_AUTH_MODE=adc` keeps Gemini calls on Application Default Credentials
+instead of `GEMINI_API_KEY`. Use `GEMINI_AUTH_MODE=api_key` only for the legacy
+API-key path.
 
 Trigger one account:
 

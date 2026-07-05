@@ -1,5 +1,5 @@
 import "./env.js";
-import { spawn } from "node:child_process";
+import { buildGeminiAuthHeaders } from "./google-adc.js";
 
 const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
@@ -13,7 +13,7 @@ export async function summarizeCardReasons(cards, { maxChars = 120, timeoutMs = 
   const apiKey = process.env.GEMINI_API_KEY;
   const model = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
   const items = (cards || []).filter((card) => Array.isArray(card.reasons) && card.reasons.length);
-  if (!apiKey || !items.length) return result;
+  if (!items.length) return result;
 
   const prompt =
     "คุณคือผู้ช่วยสรุปประเด็นการตรวจสอบโฆษณา (ad compliance) เป็นภาษาไทย\n" +
@@ -44,7 +44,9 @@ export async function summarizeCardReasons(cards, { maxChars = 120, timeoutMs = 
   const url = `${GEMINI_ENDPOINT}/${model}:generateContent`;
 
   try {
-    const payload = await postGeminiJson(url, apiKey, requestBody, timeoutMs);
+    const authHeaders = await buildGeminiAuthHeaders(apiKey);
+    if (!authHeaders) return result;
+    const payload = await postGeminiJson(url, authHeaders, requestBody, timeoutMs);
     const text = (payload.candidates || [])
       .flatMap((candidate) => candidate.content?.parts || [])
       .map((part) => part.text || "")
@@ -66,26 +68,18 @@ export async function summarizeCardReasons(cards, { maxChars = 120, timeoutMs = 
   return result;
 }
 
-async function postGeminiJson(url, apiKey, body, timeoutMs) {
-  try {
-    return await postJsonWithCurl(url, apiKey, body, timeoutMs);
-  } catch (curlError) {
-    try {
-      return await postJsonWithFetch(url, apiKey, body, timeoutMs);
-    } catch (fetchError) {
-      throw new Error(`curl=${curlError.message}; fetch=${fetchError.message}`);
-    }
-  }
+async function postGeminiJson(url, authHeaders, body, timeoutMs) {
+  return await postJsonWithFetch(url, authHeaders, body, timeoutMs);
 }
 
-async function postJsonWithFetch(url, apiKey, body, timeoutMs) {
+async function postJsonWithFetch(url, authHeaders, body, timeoutMs) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(url, {
       method: "POST",
       signal: controller.signal,
-      headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
+      headers: { "content-type": "application/json", ...authHeaders },
       body: JSON.stringify(body)
     });
     if (!response.ok) throw new Error(`Gemini HTTP ${response.status}`);
@@ -93,43 +87,4 @@ async function postJsonWithFetch(url, apiKey, body, timeoutMs) {
   } finally {
     clearTimeout(timer);
   }
-}
-
-async function postJsonWithCurl(url, apiKey, body, timeoutMs) {
-  const timeoutSec = Math.max(1, Math.ceil(timeoutMs / 1000));
-  const child = spawn("curl", [
-    "-sS",
-    "--max-time",
-    String(timeoutSec),
-    "-X",
-    "POST",
-    "-H",
-    "content-type: application/json",
-    "-H",
-    `x-goog-api-key: ${apiKey}`,
-    "--data-binary",
-    "@-",
-    url
-  ], { stdio: ["pipe", "pipe", "pipe"] });
-
-  let stdout = "";
-  let stderr = "";
-  child.stdout.setEncoding("utf8");
-  child.stderr.setEncoding("utf8");
-  child.stdout.on("data", (chunk) => { stdout += chunk; });
-  child.stderr.on("data", (chunk) => { stderr += chunk; });
-  child.stdin.end(JSON.stringify(body));
-
-  const exitCode = await new Promise((resolve, reject) => {
-    child.on("error", reject);
-    child.on("close", resolve);
-  });
-  if (exitCode !== 0) {
-    throw new Error(`curl exited ${exitCode}${stderr ? `: ${stderr.trim()}` : ""}`);
-  }
-  const payload = JSON.parse(stdout || "{}");
-  if (payload.error) {
-    throw new Error(`Gemini HTTP ${payload.error.code || "error"}: ${payload.error.message || "unknown error"}`);
-  }
-  return payload;
 }

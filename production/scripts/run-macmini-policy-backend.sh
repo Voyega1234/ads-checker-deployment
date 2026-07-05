@@ -15,6 +15,7 @@ CATALOG_STYLE_VALUE="v2"
 CATALOG_AI_SUMMARY_VALUE="1"
 START_WORKER="1"
 WORKER_CONCURRENCY_VALUE="${MACMINI_WORKER_CONCURRENCY:-1}"
+GEMINI_AUTH_MODE_VALUE="${GEMINI_AUTH_MODE:-adc}"
 
 LLM_MODEL_VALUE="${LLM_MODEL:-gemini-2.5-flash}"
 LLM_TEMPERATURE_VALUE="${LLM_TEMPERATURE:-0.5}"
@@ -44,6 +45,7 @@ Common options:
   --catalog-style VALUE        Catalog card style: classic or v2. Default: v2
   --catalog-ai-summary bool    Use AI summary for v2 card reasons. Default: true
   --worker-concurrency VALUE   Local queue worker concurrency. Default: 1
+  --gemini-auth VALUE          Gemini auth mode: adc or api_key. Default: adc
   --no-worker                  Do not start a local worker; use an already-running worker
 
 Gemini options:
@@ -85,6 +87,7 @@ while [[ $# -gt 0 ]]; do
     --catalog-ai-summary) CATALOG_AI_SUMMARY_VALUE="${2:-}"; shift 2 ;;
     --no-catalog-ai-summary) CATALOG_AI_SUMMARY_VALUE="0"; shift ;;
     --worker-concurrency) WORKER_CONCURRENCY_VALUE="${2:-}"; shift 2 ;;
+    --gemini-auth) GEMINI_AUTH_MODE_VALUE="${2:-}"; shift 2 ;;
     --no-worker) START_WORKER="0"; shift ;;
     --llm-model) LLM_MODEL_VALUE="${2:-}"; shift 2 ;;
     --temperature) LLM_TEMPERATURE_VALUE="${2:-}"; shift 2 ;;
@@ -103,6 +106,11 @@ if [[ "$BACKEND" != "gemini" && "$BACKEND" != "openrouter" ]]; then
   exit 2
 fi
 
+if [[ "$GEMINI_AUTH_MODE_VALUE" != "adc" && "$GEMINI_AUTH_MODE_VALUE" != "api_key" ]]; then
+  echo "--gemini-auth must be adc or api_key" >&2
+  exit 2
+fi
+
 if [[ -z "$ACCOUNT" || -z "$CHANNEL" ]]; then
   echo "--account and --channel are required" >&2
   usage
@@ -114,6 +122,7 @@ if [[ -z "$SOURCE" ]]; then
 fi
 
 export LLM_BACKEND="$BACKEND"
+export GEMINI_AUTH_MODE="$GEMINI_AUTH_MODE_VALUE"
 export LLM_MODEL="$LLM_MODEL_VALUE"
 export LLM_TEMPERATURE="$LLM_TEMPERATURE_VALUE"
 export LLM_SEED="$LLM_SEED_VALUE"
@@ -138,6 +147,7 @@ echo "== macmini policy run =="
 echo "account=$ACCOUNT"
 echo "channel=$CHANNEL"
 echo "backend=$LLM_BACKEND"
+echo "gemini_auth=$GEMINI_AUTH_MODE"
 echo "source=$SOURCE"
 echo "worker_concurrency=$WORKER_CONCURRENCY_VALUE"
 if [[ -n "$LIMIT_ADS" ]]; then

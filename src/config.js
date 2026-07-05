@@ -11,6 +11,7 @@ export function loadConfig() {
     metaApiVersion: process.env.META_API_VERSION || "v25.0",
     activeClientsCsvUrl: process.env.ACTIVE_CLIENTS_CSV_URL,
     adAccountLimit: parseOptionalInteger(process.env.AD_ACCOUNT_LIMIT),
+    geminiAuthMode: process.env.GEMINI_AUTH_MODE || "adc",
     geminiApiKey: process.env.GEMINI_API_KEY,
     geminiModel: process.env.GEMINI_MODEL || "gemini-3-flash-preview",
     formats: parseFormats(process.env.AD_FORMATS),

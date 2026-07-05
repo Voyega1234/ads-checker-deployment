@@ -22,10 +22,6 @@ async function main() {
     throw new Error("SLACK_BOT_TOKEN is required.");
   }
 
-  if (!config.geminiApiKey) {
-    throw new Error("GEMINI_API_KEY is required.");
-  }
-
   const files = await listImages(path.resolve(targetDir));
   if (!files.length) {
     console.log("No image files found.");

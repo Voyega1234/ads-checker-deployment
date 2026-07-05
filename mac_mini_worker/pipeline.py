@@ -16,8 +16,9 @@ pipeline provides:
   - run_pipeline(...) orchestrator (calls step_01..step_04)
   - run_loop(...) used by queue workers (uses step_05 for write-back)
 
-Env (.env): GEMINI_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY)
-Optional env: EMBEDDING_MODEL, EMBEDDING_DIMENSION, EMBEDDING_MODEL_DB_NAME,
+Env (.env): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY)
+Optional env: GEMINI_AUTH_MODE, GEMINI_API_KEY, GOOGLE_CLOUD_PROJECT,
+              GOOGLE_CLOUD_LOCATION, EMBEDDING_MODEL, EMBEDDING_DIMENSION, EMBEDDING_MODEL_DB_NAME,
               LLM_BACKEND, LLM_MODEL, LLM_TEMPERATURE, LLM_SEED,
               OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_REASONING_ENABLED,
               OPENROUTER_TIMEOUT_SECONDS, OPENROUTER_RESPONSE_FORMAT_JSON,
@@ -63,7 +64,15 @@ def _load_env() -> None:
 _load_env()
 
 # --- config ---
+GEMINI_AUTH_MODE = os.getenv("GEMINI_AUTH_MODE", "adc").strip().lower()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GOOGLE_CLOUD_PROJECT = (
+    os.getenv("GOOGLE_CLOUD_PROJECT")
+    or os.getenv("GCLOUD_PROJECT")
+    or os.getenv("GCP_PROJECT_ID")
+    or ""
+)
+GOOGLE_CLOUD_LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION") or os.getenv("CLOUD_RUN_REGION") or "us-central1"
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = (
     os.getenv("SUPABASE_SERVICE_ROLE_KEY")
@@ -123,12 +132,43 @@ def _now_iso() -> str:
 def get_gemini():
     global _gemini_client
     if _gemini_client is None:
-        if not GEMINI_API_KEY:
-            raise RuntimeError("GEMINI_API_KEY is required")
         from google import genai
 
-        _gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+        if GEMINI_AUTH_MODE in {"api-key", "api_key", "apikey"}:
+            if not GEMINI_API_KEY:
+                raise RuntimeError("GEMINI_API_KEY is required when GEMINI_AUTH_MODE=api_key")
+            _gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+        elif GEMINI_AUTH_MODE in {"adc", "oauth", "application-default", "application_default_credentials"}:
+            _gemini_client = create_adc_gemini_client(genai)
+        else:
+            raise RuntimeError(f"Unsupported GEMINI_AUTH_MODE: {GEMINI_AUTH_MODE}")
     return _gemini_client
+
+
+def create_adc_gemini_client(genai_module):
+    use_vertexai = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    old_gemini_api_key = os.environ.pop("GEMINI_API_KEY", None)
+    old_google_api_key = os.environ.pop("GOOGLE_API_KEY", None)
+    try:
+        if use_vertexai:
+            if not GOOGLE_CLOUD_PROJECT:
+                raise RuntimeError("GOOGLE_CLOUD_PROJECT is required when GOOGLE_GENAI_USE_VERTEXAI=1")
+            return genai_module.Client(
+                vertexai=True,
+                project=GOOGLE_CLOUD_PROJECT,
+                location=GOOGLE_CLOUD_LOCATION,
+            )
+        return genai_module.Client()
+    finally:
+        if old_gemini_api_key is not None:
+            os.environ["GEMINI_API_KEY"] = old_gemini_api_key
+        if old_google_api_key is not None:
+            os.environ["GOOGLE_API_KEY"] = old_google_api_key
 
 
 def get_supabase():

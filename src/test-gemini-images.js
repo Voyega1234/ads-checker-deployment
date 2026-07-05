@@ -11,10 +11,6 @@ async function main() {
     throw new Error("Usage: node src/test-gemini-images.js <image-or-directory>");
   }
 
-  if (!config.geminiApiKey) {
-    throw new Error("GEMINI_API_KEY is required.");
-  }
-
   const targetPath = path.resolve(target);
   const stat = await fs.stat(targetPath);
   const files = stat.isDirectory() ? await listImages(targetPath) : [targetPath];

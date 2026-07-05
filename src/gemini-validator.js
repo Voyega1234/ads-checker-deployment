@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import { buildGeminiAuthHeaders } from "./google-adc.js";
 
 function buildPrompt(format, creativeObjectType) {
   return `CONTEXT:
@@ -148,7 +149,8 @@ export async function validateScreenshotWithGemini({
   format = "UNKNOWN",
   creativeObjectType = "UNKNOWN"
 }) {
-  if (!config.geminiApiKey) return null;
+  const authHeaders = await buildGeminiAuthHeaders(config.geminiApiKey);
+  if (!authHeaders) return null;
 
   const imageBytes = imageBuffer || (await fs.readFile(screenshotPath));
   const controller = new AbortController();
@@ -163,7 +165,7 @@ export async function validateScreenshotWithGemini({
         signal: controller.signal,
         headers: {
           "content-type": "application/json",
-          "x-goog-api-key": config.geminiApiKey
+          ...authHeaders
         },
         body: JSON.stringify({
           contents: [
