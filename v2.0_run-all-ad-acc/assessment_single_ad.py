@@ -30,10 +30,6 @@ def assess_single_ad(
       passed: bool
       assessment_result: JSON-serializable dict (raw, parsed, normalized, error if any)
     """
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY environment variable is required")
-
     TEMP_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
     text = creative_utils.extract_text(creative)
@@ -46,12 +42,12 @@ def assess_single_ad(
 
     if fda_true and spell_true:
         return _run_policy_and_spell(
-            client_name, ad_id, ad_name, text, image_path, api_key
+            client_name, ad_id, ad_name, text, image_path
         )
     if fda_true:
-        return _run_policy_only(ad_id, ad_name, text, image_path, api_key)
+        return _run_policy_only(ad_id, ad_name, text, image_path)
     if spell_true:
-        return _run_spell_only(ad_id, ad_name, text, image_path, api_key)
+        return _run_spell_only(ad_id, ad_name, text, image_path)
     return {
         "passed": True,
         "assessment_result": {
@@ -63,11 +59,11 @@ def assess_single_ad(
 
 
 def _run_policy_only(
-    ad_id: str, ad_name: str, text: str, image_path: Path | None, api_key: str
+    ad_id: str, ad_name: str, text: str, image_path: Path | None
 ) -> dict:
     _ = image_path
     try:
-        parsed = policy_rule_checker.run_policy_caption_check(text, api_key=api_key)
+        parsed = policy_rule_checker.run_policy_caption_check(text)
     except Exception as e:
         return {
             "passed": False,
@@ -97,12 +93,12 @@ def _run_policy_only(
 
 
 def _run_spell_only(
-    ad_id: str, ad_name: str, text: str, image_path: Path | None, api_key: str
+    ad_id: str, ad_name: str, text: str, image_path: Path | None
 ) -> dict:
     prompt_content = prompt_utils.get_prompt_by_name("spell_checker")
     if not prompt_content:
         raise ValueError("Prompt 'spell_checker' not found")
-    result = gemini_utils.run_assessment(prompt_content, text, image_path, api_key)
+    result = gemini_utils.run_assessment(prompt_content, text, image_path)
     if isinstance(result, dict) and "_error" in result:
         return {
             "passed": False,
@@ -150,11 +146,10 @@ def _run_policy_and_spell(
     ad_name: str,
     text: str,
     image_path: Path | None,
-    api_key: str,
 ) -> dict:
     _ = client_name
     try:
-        policy_parsed = policy_rule_checker.run_policy_caption_check(text, api_key=api_key)
+        policy_parsed = policy_rule_checker.run_policy_caption_check(text)
     except Exception as e:
         return {
             "passed": False,
@@ -168,7 +163,7 @@ def _run_policy_and_spell(
         }
 
     policy_normalized = report_parsing.normalize_policy_v2_result(policy_parsed, text)
-    spell_result = _run_spell_only(ad_id, ad_name, text, image_path, api_key)
+    spell_result = _run_spell_only(ad_id, ad_name, text, image_path)
     spell_ar = spell_result.get("assessment_result") or {}
     if spell_ar.get("error") or spell_ar.get("parse_error"):
         return {

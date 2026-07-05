@@ -1,6 +1,5 @@
 """Policy + spell check batch wrapper."""
 import json
-import os
 from pathlib import Path
 
 import assessment_single_ad
@@ -25,10 +24,6 @@ def run(
     ads_data: list of (ad, creative_detail) from main._fetch_ads_data.
     Run the same policy v2 + legacy spell flow used by the worker for each ad.
     """
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY environment variable is required")
-
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     TEMP_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 

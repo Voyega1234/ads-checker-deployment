@@ -38,6 +38,7 @@ from typing import Any
 
 import requests
 from dotenv import load_dotenv
+import google_adc
 
 # --- env loading: prefer a local .env, fall back to the shared embedding .env ---
 _HERE = Path(__file__).resolve().parent
@@ -65,7 +66,6 @@ _load_env()
 
 # --- config ---
 GEMINI_AUTH_MODE = os.getenv("GEMINI_AUTH_MODE", "adc").strip().lower()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GOOGLE_CLOUD_PROJECT = (
     os.getenv("GOOGLE_CLOUD_PROJECT")
     or os.getenv("GCLOUD_PROJECT")
@@ -132,67 +132,8 @@ def _now_iso() -> str:
 def get_gemini():
     global _gemini_client
     if _gemini_client is None:
-        from google import genai
-
-        if GEMINI_AUTH_MODE in {"api-key", "api_key", "apikey"}:
-            if not GEMINI_API_KEY:
-                raise RuntimeError("GEMINI_API_KEY is required when GEMINI_AUTH_MODE=api_key")
-            _gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-        elif GEMINI_AUTH_MODE in {"adc", "oauth", "application-default", "application_default_credentials"}:
-            _gemini_client = create_adc_gemini_client(genai)
-        else:
-            raise RuntimeError(f"Unsupported GEMINI_AUTH_MODE: {GEMINI_AUTH_MODE}")
+        _gemini_client = google_adc.create_gemini_client()
     return _gemini_client
-
-
-def create_adc_gemini_client(genai_module):
-    use_vertexai = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
-    use_enterprise = os.getenv("GOOGLE_GENAI_USE_ENTERPRISE", "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
-    old_gemini_api_key = os.environ.pop("GEMINI_API_KEY", None)
-    old_google_api_key = os.environ.pop("GOOGLE_API_KEY", None)
-    old_use_enterprise = os.environ.get("GOOGLE_GENAI_USE_ENTERPRISE")
-    old_project = os.environ.get("GOOGLE_CLOUD_PROJECT")
-    old_location = os.environ.get("GOOGLE_CLOUD_LOCATION")
-    try:
-        if use_vertexai:
-            if not GOOGLE_CLOUD_PROJECT:
-                raise RuntimeError("GOOGLE_CLOUD_PROJECT is required when GOOGLE_GENAI_USE_VERTEXAI=1")
-            return genai_module.Client(
-                vertexai=True,
-                project=GOOGLE_CLOUD_PROJECT,
-                location=GOOGLE_CLOUD_LOCATION,
-            )
-        if not use_enterprise:
-            os.environ["GOOGLE_GENAI_USE_ENTERPRISE"] = "True"
-        if GOOGLE_CLOUD_PROJECT:
-            os.environ["GOOGLE_CLOUD_PROJECT"] = GOOGLE_CLOUD_PROJECT
-        os.environ["GOOGLE_CLOUD_LOCATION"] = GOOGLE_CLOUD_LOCATION
-        return genai_module.Client()
-    finally:
-        if old_gemini_api_key is not None:
-            os.environ["GEMINI_API_KEY"] = old_gemini_api_key
-        if old_google_api_key is not None:
-            os.environ["GOOGLE_API_KEY"] = old_google_api_key
-        restore_optional_env("GOOGLE_GENAI_USE_ENTERPRISE", old_use_enterprise)
-        restore_optional_env("GOOGLE_CLOUD_PROJECT", old_project)
-        restore_optional_env("GOOGLE_CLOUD_LOCATION", old_location)
-
-
-def restore_optional_env(name: str, value: str | None) -> None:
-    if value is None:
-        os.environ.pop(name, None)
-    else:
-        os.environ[name] = value
 
 
 def get_supabase():

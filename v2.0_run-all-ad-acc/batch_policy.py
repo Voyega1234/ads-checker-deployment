@@ -17,6 +17,7 @@ from typing import Any, Optional
 
 import requests
 
+import google_adc
 from env_loader import load_project_env
 import policy_rule_checker
 import report_parsing
@@ -93,7 +94,6 @@ def main() -> int:
 
 
 def submit_batch(args: argparse.Namespace) -> int:
-    api_key = require_env("GEMINI_API_KEY")
     account_act = normalize_act_id(args.account)
     account_num = int(account_act.replace("act_", ""))
     run_id = str(uuid.UUID(args.run_id)) if args.run_id else str(uuid.uuid4())
@@ -229,8 +229,8 @@ def submit_batch(args: argparse.Namespace) -> int:
         return 0
 
     if not args.dry_run:
-        uploaded_file = upload_jsonl_file(api_key, requests_path, f"batch-policy-{account_num}-{run_id}")
-        batch = create_batch_job(api_key, uploaded_file["name"], f"batch-policy-{account_num}-{run_id}")
+        uploaded_file = upload_jsonl_file(requests_path, f"batch-policy-{account_num}-{run_id}")
+        batch = create_batch_job(uploaded_file["name"], f"batch-policy-{account_num}-{run_id}")
         state["uploaded_file"] = uploaded_file
         state["batch"] = batch
 
@@ -257,19 +257,17 @@ def submit_batch(args: argparse.Namespace) -> int:
 
 
 def print_status(args: argparse.Namespace) -> int:
-    api_key = require_env("GEMINI_API_KEY")
     state = read_json(Path(args.state))
     batch_name = ((state.get("batch") or {}).get("name") or "").strip()
     if not batch_name:
         print(json.dumps({"ok": False, "error": "state has no batch.name", "state": args.state}, indent=2))
         return 1
-    status = get_batch_status(api_key, batch_name)
+    status = get_batch_status(batch_name)
     print(json.dumps(status, ensure_ascii=False, indent=2))
     return 0
 
 
 def collect_batch(args: argparse.Namespace) -> int:
-    api_key = require_env("GEMINI_API_KEY")
     state_path = Path(args.state)
     state = read_json(state_path)
     output_path = Path(args.output_file) if args.output_file else None
@@ -277,7 +275,7 @@ def collect_batch(args: argparse.Namespace) -> int:
         batch_name = ((state.get("batch") or {}).get("name") or "").strip()
         if not batch_name:
             raise RuntimeError("State has no batch.name. Pass --output-file for dry-run/offline parsing.")
-        status = get_batch_status(api_key, batch_name)
+        status = get_batch_status(batch_name)
         batch_state = get_batch_state(status)
         if batch_state not in COMPLETED_STATES:
             print(json.dumps({"ok": False, "state": batch_state, "message": "batch_not_complete"}, indent=2))
@@ -289,7 +287,7 @@ def collect_batch(args: argparse.Namespace) -> int:
         if not result_file:
             raise RuntimeError("Batch succeeded but no dest.fileName was found.")
         output_path = Path(state.get("requests_path", "batch-output.jsonl")).with_suffix(".results.jsonl")
-        output_path.write_bytes(download_file(api_key, result_file))
+        output_path.write_bytes(download_file(result_file))
 
     persisted = parse_and_persist_results(state, output_path, persist=not args.no_persist)
     state["collected_at"] = now_iso_bkk()
@@ -307,7 +305,6 @@ def wait_collect_batch(
     timeout_seconds: int,
     persist: bool,
 ) -> dict[str, Any]:
-    api_key = require_env("GEMINI_API_KEY")
     state = read_json(state_path)
     batch_name = ((state.get("batch") or {}).get("name") or "").strip()
     if not batch_name:
@@ -317,7 +314,7 @@ def wait_collect_batch(
     status: dict[str, Any] = {}
     batch_state = ""
     while True:
-        status = get_batch_status(api_key, batch_name)
+        status = get_batch_status(batch_name)
         batch_state = get_batch_state(status)
         elapsed = int(time.monotonic() - started)
         print(f"batch_policy_wait state={batch_state or 'unknown'} elapsed_sec={elapsed}")
@@ -338,7 +335,7 @@ def wait_collect_batch(
     if not result_file:
         raise RuntimeError("Batch succeeded but no result file was found.")
     output_path = Path(state.get("requests_path", "batch-output.jsonl")).with_suffix(".results.jsonl")
-    output_path.write_bytes(download_file(api_key, result_file))
+    output_path.write_bytes(download_file(result_file))
     persisted = parse_and_persist_results(state, output_path, persist=persist)
     state["collected_at"] = now_iso_bkk()
     state["output_path"] = str(output_path)
@@ -537,10 +534,10 @@ def extract_result_key(item: dict[str, Any]) -> str:
     )
 
 
-def upload_jsonl_file(api_key: str, path: Path, display_name: str) -> dict[str, Any]:
+def upload_jsonl_file(path: Path, display_name: str) -> dict[str, Any]:
     data = path.read_bytes()
     headers = {
-        "x-goog-api-key": api_key,
+        **google_adc.get_gemini_http_headers(),
         "X-Goog-Upload-Protocol": "resumable",
         "X-Goog-Upload-Command": "start",
         "X-Goog-Upload-Header-Content-Length": str(len(data)),
@@ -571,10 +568,10 @@ def upload_jsonl_file(api_key: str, path: Path, display_name: str) -> dict[str, 
     return upload.json().get("file") or upload.json()
 
 
-def create_batch_job(api_key: str, file_name: str, display_name: str) -> dict[str, Any]:
+def create_batch_job(file_name: str, display_name: str) -> dict[str, Any]:
     response = requests.post(
         f"https://generativelanguage.googleapis.com/v1beta/models/{policy_rule_checker.MODEL_ID}:batchGenerateContent",
-        headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
+        headers={**google_adc.get_gemini_http_headers(), "Content-Type": "application/json"},
         data=json.dumps({
             "batch": {
                 "display_name": display_name,
@@ -587,20 +584,21 @@ def create_batch_job(api_key: str, file_name: str, display_name: str) -> dict[st
     return response.json()
 
 
-def get_batch_status(api_key: str, batch_name: str) -> dict[str, Any]:
+def get_batch_status(batch_name: str) -> dict[str, Any]:
     response = requests.get(
         f"https://generativelanguage.googleapis.com/v1beta/{batch_name}",
-        headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
+        headers={**google_adc.get_gemini_http_headers(), "Content-Type": "application/json"},
         timeout=120,
     )
     raise_for_status_with_body(response, "Gemini batch status failed")
     return response.json()
 
 
-def download_file(api_key: str, file_name: str) -> bytes:
+def download_file(file_name: str) -> bytes:
+    auth_headers = google_adc.get_gemini_http_headers()
     direct = requests.get(
         f"https://generativelanguage.googleapis.com/download/v1beta/{file_name}:download?alt=media",
-        headers={"x-goog-api-key": api_key},
+        headers=auth_headers,
         timeout=240,
     )
     if direct.ok:
@@ -608,14 +606,14 @@ def download_file(api_key: str, file_name: str) -> bytes:
 
     meta = requests.get(
         f"https://generativelanguage.googleapis.com/v1beta/{file_name}",
-        headers={"x-goog-api-key": api_key},
+        headers=auth_headers,
         timeout=120,
     )
     raise_for_status_with_body(meta, "Gemini file metadata failed")
     file_meta = meta.json().get("file") or meta.json()
     download_uri = file_meta.get("downloadUri") or file_meta.get("download_uri")
     if download_uri:
-        response = requests.get(download_uri, headers={"x-goog-api-key": api_key}, timeout=240)
+        response = requests.get(download_uri, headers=auth_headers, timeout=240)
         raise_for_status_with_body(response, "Gemini file download failed")
         return response.content
     raise_for_status_with_body(direct, "Gemini direct file download failed")

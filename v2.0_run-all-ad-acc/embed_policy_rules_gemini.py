@@ -38,9 +38,9 @@ import sys
 import time
 from typing import Any, Dict, Iterable, List, Optional
 
-from google import genai
 from google.genai import types
 from supabase import create_client
+import google_adc
 
 
 try:
@@ -74,7 +74,6 @@ def alias_env(target: str, source: str) -> None:
 
 load_env()
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = (
     os.getenv("SUPABASE_SERVICE_ROLE_KEY")
@@ -96,8 +95,6 @@ DEFAULT_RULE_STATUS_FILTER = ["prohibited", "warning", "required", "conditional"
 
 def require_env() -> None:
     missing = []
-    if not GEMINI_API_KEY:
-        missing.append("GEMINI_API_KEY")
     if not SUPABASE_URL:
         missing.append("SUPABASE_URL")
     if not SUPABASE_KEY:
@@ -116,7 +113,7 @@ def vector_to_pg_literal(values: Iterable[float]) -> str:
 
 
 def create_gemini_client():
-    return genai.Client(api_key=GEMINI_API_KEY)
+    return google_adc.create_gemini_client()
 
 
 def create_supabase_client():

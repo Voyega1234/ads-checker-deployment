@@ -24,6 +24,8 @@ try:
 except ImportError as exc:
     raise SystemExit("Missing dependency: requests. Install with: pip install requests python-dotenv") from exc
 
+import google_adc
+
 
 # ============================================================
 # CONFIG
@@ -811,10 +813,10 @@ def build_gemini_payload(
     return payload
 
 
-def call_gemini_with_retry(payload: Dict[str, Any], *, api_key: str, label: str = "") -> Dict[str, Any]:
+def call_gemini_with_retry(payload: Dict[str, Any], *, label: str = "") -> Dict[str, Any]:
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ID}:generateContent"
-    params = {"key": api_key}
-    headers = {"Content-Type": "application/json"}
+    params = {}
+    headers = {"Content-Type": "application/json", **google_adc.get_gemini_http_headers()}
 
     attempts = max(1, int(MAX_GEMINI_ATTEMPTS))
     last_title = "UNKNOWN ERROR"
@@ -910,7 +912,6 @@ def run_caption_only_check(
     rules_block: str,
     quick_reference_block: str,
     caption: str,
-    api_key: str,
     label: str = "caption-check",
 ) -> Dict[str, Any]:
     prompt_has_inline_message = prompt_contains_message_placeholder(raw_prompt)
@@ -928,7 +929,7 @@ def run_caption_only_check(
         system_instruction = "\n".join([prompt_text, "", build_task_instruction_caption_only()])
         parts = [{"text": f"=== INPUT_MESSAGE START ===\n{caption or ''}\n=== INPUT_MESSAGE END ==="}]
         payload = build_gemini_payload(parts, system_instruction=system_instruction)
-    run = call_gemini_with_retry(payload, api_key=api_key, label=label)
+    run = call_gemini_with_retry(payload, label=label)
 
     if not run.get("ok"):
         return {"ok": False, "title": run.get("title"), "detail": run.get("detail"), "raw": run.get("raw")}
@@ -946,7 +947,6 @@ def repair_failed_revised_caption(
     original_caption: str,
     failed_revised_candidates: List[Dict[str, Any]],
     verify_analysis: Dict[str, Any],
-    api_key: str,
     label: str = "repair",
 ) -> Dict[str, Any]:
     verify_issues = normalize_issues_from_analysis(verify_analysis)
@@ -996,7 +996,7 @@ def repair_failed_revised_caption(
     ])
 
     payload = build_gemini_payload([{"text": repair_instruction}])
-    run = call_gemini_with_retry(payload, api_key=api_key, label=label)
+    run = call_gemini_with_retry(payload, label=label)
 
     if not run.get("ok"):
         return {
@@ -1025,7 +1025,6 @@ def ensure_revised_caption_pass(
     quick_reference_block: str,
     original_caption: str,
     initial_revised_caption: str,
-    api_key: str,
 ) -> Dict[str, Any]:
     candidate = to_clean_string(initial_revised_caption)
     failed_revised_candidates: List[Dict[str, Any]] = []
@@ -1042,7 +1041,6 @@ def ensure_revised_caption_pass(
             original_caption=original_caption,
             failed_revised_candidates=[],
             verify_analysis={},
-            api_key=api_key,
             label="direct-repair-empty-candidate",
         )
         if direct_repair.get("ok") and direct_repair.get("repaired_caption"):
@@ -1067,7 +1065,6 @@ def ensure_revised_caption_pass(
             rules_block=rules_block,
             quick_reference_block=quick_reference_block,
             caption=candidate,
-            api_key=api_key,
             label=f"verify-round-{round_no}",
         )
 
@@ -1122,7 +1119,6 @@ def ensure_revised_caption_pass(
             original_caption=original_caption,
             failed_revised_candidates=failed_revised_candidates,
             verify_analysis=last_verify_analysis,
-            api_key=api_key,
             label=f"repair-round-{round_no}",
         )
 
@@ -1220,15 +1216,11 @@ def build_final_output(
 def run_policy_caption_check(
     caption: str,
     *,
-    api_key: str | None = None,
     write_output: bool = False,
 ) -> Dict[str, Any]:
     """Run policy v2 for one caption and return the full structured output."""
     load_env_from_dotenv_file()
 
-    api_key = (api_key or os.getenv("GEMINI_API_KEY") or "").strip()
-    if not api_key:
-        raise RuntimeError("Missing required env var: GEMINI_API_KEY")
     supabase_url = get_required_env("SUPABASE_URL")
     supabase_key = get_supabase_key()
 
@@ -1257,7 +1249,6 @@ def run_policy_caption_check(
         rules_block=rules_block,
         quick_reference_block=quick_reference_block,
         caption=caption,
-        api_key=api_key,
         label="initial-caption-check",
     )
 
@@ -1301,7 +1292,6 @@ def run_policy_caption_check(
             quick_reference_block=quick_reference_block,
             original_caption=caption,
             initial_revised_caption=initial_revised_caption,
-            api_key=api_key,
         )
         final_output = build_final_output(
             original_caption=caption,

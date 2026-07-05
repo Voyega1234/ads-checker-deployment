@@ -29,10 +29,6 @@ def run(
     Filter ACTIVE ads; for each: extract text, download image if present,
     call Gemini with policy_checker prompt; build report with raw assessment text.
     """
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY environment variable is required")
-
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     TEMP_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -55,7 +51,7 @@ def run(
             )
 
         try:
-            parsed = policy_rule_checker.run_policy_caption_check(text, api_key=api_key)
+            parsed = policy_rule_checker.run_policy_caption_check(text)
         except Exception as e:
             action_index += 1
             reply = report_parsing.format_policy_thread_reply(

@@ -4,16 +4,14 @@ No parsing of JSON output in this phase.
 """
 from pathlib import Path
 
-from google import genai
-
 import creative_utils
+import google_adc
 
 
 def run_assessment(
     prompt_content: str,
     creative_text: str,
     image_path: Path | None,
-    api_key: str,
 ) -> str | dict:
     """
     Call Gemini with prompt ({{Message}} already replaced by caller).
@@ -26,7 +24,7 @@ def run_assessment(
     creative_utils.logger.debug("Calling Gemini, has_image=%s", has_image)
 
     try:
-        client = genai.Client(api_key=api_key)
+        client = google_adc.create_gemini_client()
         if not has_image:
             response = client.models.generate_content(
                 model="gemini-2.5-flash",

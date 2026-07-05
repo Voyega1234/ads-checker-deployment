@@ -30,10 +30,6 @@ def run(
     Filter ACTIVE ads; for each: extract text, download image if present,
     call Gemini with spell_checker prompt; build report with raw assessment text.
     """
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY environment variable is required")
-
     prompt_content = prompt_utils.get_prompt_by_name("spell_checker")
     if not prompt_content:
         raise ValueError("Prompt 'spell_checker' not found (check Sheet tab 'Prompt' or fallback)")
@@ -60,7 +56,7 @@ def run(
             )
 
         result = gemini_utils.run_assessment(
-            prompt_content, text, image_path, api_key
+            prompt_content, text, image_path
         )
         if isinstance(result, dict) and "_error" in result:
             action_index += 1
