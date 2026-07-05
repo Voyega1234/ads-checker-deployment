@@ -10,6 +10,9 @@ BACKEND="gemini"
 SOURCE=""
 SLACK_FORMAT="catalog"
 MAX_CARDS="10"
+LIMIT_ADS=""
+CATALOG_STYLE_VALUE="v2"
+CATALOG_AI_SUMMARY_VALUE="1"
 START_WORKER="1"
 WORKER_CONCURRENCY_VALUE="${MACMINI_WORKER_CONCURRENCY:-1}"
 
@@ -37,6 +40,9 @@ Common options:
   --channel VALUE              Slack channel ID
   --source VALUE               Source label. Default: manual-<backend>-<timestamp>
   --max-cards VALUE            Slack catalog max cards. Default: 10
+  --limit-ads VALUE            Limit run to first N active ads for this account
+  --catalog-style VALUE        Catalog card style: classic or v2. Default: v2
+  --catalog-ai-summary bool    Use AI summary for v2 card reasons. Default: true
   --worker-concurrency VALUE   Local queue worker concurrency. Default: 1
   --no-worker                  Do not start a local worker; use an already-running worker
 
@@ -74,6 +80,10 @@ while [[ $# -gt 0 ]]; do
     --channel) CHANNEL="${2:-}"; shift 2 ;;
     --source) SOURCE="${2:-}"; shift 2 ;;
     --max-cards) MAX_CARDS="${2:-}"; shift 2 ;;
+    --limit-ads) LIMIT_ADS="${2:-}"; shift 2 ;;
+    --catalog-style) CATALOG_STYLE_VALUE="${2:-}"; shift 2 ;;
+    --catalog-ai-summary) CATALOG_AI_SUMMARY_VALUE="${2:-}"; shift 2 ;;
+    --no-catalog-ai-summary) CATALOG_AI_SUMMARY_VALUE="0"; shift ;;
     --worker-concurrency) WORKER_CONCURRENCY_VALUE="${2:-}"; shift 2 ;;
     --no-worker) START_WORKER="0"; shift ;;
     --llm-model) LLM_MODEL_VALUE="${2:-}"; shift 2 ;;
@@ -130,6 +140,11 @@ echo "channel=$CHANNEL"
 echo "backend=$LLM_BACKEND"
 echo "source=$SOURCE"
 echo "worker_concurrency=$WORKER_CONCURRENCY_VALUE"
+if [[ -n "$LIMIT_ADS" ]]; then
+  echo "limit_ads=$LIMIT_ADS"
+fi
+echo "catalog_style=$CATALOG_STYLE_VALUE"
+echo "catalog_ai_summary=$CATALOG_AI_SUMMARY_VALUE"
 if [[ "$BACKEND" == "openrouter" ]]; then
   echo "openrouter_model=$OPENROUTER_MODEL"
   echo "openrouter_reasoning=$OPENROUTER_REASONING_ENABLED"
@@ -154,15 +169,39 @@ if [[ "$START_WORKER" == "1" ]]; then
   v2.0_run-all-ad-acc/.venv/bin/python mac_mini_worker/worker_slack.py \
     --concurrency "$WORKER_CONCURRENCY_VALUE" &
   WORKER_PID="$!"
+  export MACMINI_EMBEDDED_WORKER="0"
   sleep 2
 fi
 
 echo "== running workflow =="
-python3 production/worker/main.py \
+WORKFLOW_CMD=(
+  python3 production/worker/main.py
   --account "$ACCOUNT" \
   --mode full \
   --policy-engine macmini \
   --channel "$CHANNEL" \
   --slack-format "$SLACK_FORMAT" \
+  --catalog-style "$CATALOG_STYLE_VALUE" \
+  --catalog-max-cards "$MAX_CARDS" \
   --disable-recent-slack-skip \
   --source "$SOURCE"
+)
+
+if [[ -n "$LIMIT_ADS" ]]; then
+  WORKFLOW_CMD+=(--limit-ads "$LIMIT_ADS")
+fi
+
+case "$(printf '%s' "$CATALOG_AI_SUMMARY_VALUE" | tr '[:upper:]' '[:lower:]')" in
+  1|true|yes|on)
+    WORKFLOW_CMD+=(--catalog-ai-summary)
+    ;;
+  0|false|no|off)
+    WORKFLOW_CMD+=(--no-catalog-ai-summary)
+    ;;
+  *)
+    echo "--catalog-ai-summary must be true/false" >&2
+    exit 2
+    ;;
+esac
+
+"${WORKFLOW_CMD[@]}"

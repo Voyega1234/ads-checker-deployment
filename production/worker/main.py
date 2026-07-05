@@ -107,6 +107,32 @@ def main() -> int:
         default=int(os.environ.get("CATALOG_MAX_CARDS", "10")),
         help="Maximum catalog cards to send to Slack (default: 10).",
     )
+    parser.add_argument(
+        "--catalog-style",
+        choices=["classic", "v2"],
+        default=os.environ.get("CATALOG_STYLE", "v2"),
+        help=(
+            "Catalog card style: classic (original) or v2 (severity-led redesign with "
+            "risk badges, zero-count categories hidden, and primary action). "
+            "Default: v2."
+        ),
+    )
+    parser.add_argument(
+        "--catalog-ai-summary",
+        action="store_true",
+        default=os.environ.get("CATALOG_AI_SUMMARY", "1").strip().lower() in {"1", "true", "yes", "on"},
+        help=(
+            "v2 only. Summarise each card's policy reasons into one short Thai line "
+            "via Gemini instead of listing them. Falls back to the verbatim list on "
+            "any AI failure. Default: on."
+        ),
+    )
+    parser.add_argument(
+        "--no-catalog-ai-summary",
+        action="store_false",
+        dest="catalog_ai_summary",
+        help="Disable Gemini summaries for v2 catalog cards.",
+    )
     parser.add_argument("--placement-report", default="")
     parser.add_argument("--unified-report", default="")
     parser.add_argument("--skip-slack", action="store_true")
@@ -146,10 +172,10 @@ def main() -> int:
     parser.add_argument(
         "--policy-engine",
         choices=["legacy", "macmini"],
-        default=os.environ.get("POLICY_ENGINE", "legacy"),
+        default=os.environ.get("POLICY_ENGINE", "macmini"),
         help=(
             "Policy implementation. legacy uses v2.0_run-all-ad-acc; "
-            "macmini submits caption jobs to macmini_worker_jobs."
+            "macmini submits caption jobs to macmini_worker_jobs (default: macmini)."
         ),
     )
     parser.add_argument(
@@ -183,6 +209,12 @@ def main() -> int:
     )
     parser.add_argument("--source", default="", help="Run source label, e.g. webhook.")
     parser.add_argument("--new-ad-ids", default="", help="Comma-separated ad IDs that triggered this run.")
+    parser.add_argument(
+        "--limit-ads",
+        type=int,
+        default=0,
+        help="Limit a manual run to the first N active ads for each account.",
+    )
     parser.add_argument("--event-ids", default="", help="Comma-separated meta_ad_status_events IDs to mark processed.")
     parser.add_argument(
         "--mark-events-processed",
@@ -375,6 +407,22 @@ def run_single_account(
     account = normalize_account(account_raw)
     account_num = account.replace("act_", "")
     new_ad_ids = parse_csv_values(args.new_ad_ids)
+    if args.limit_ads and args.limit_ads > 0:
+        limited_ad_ids = fetch_limited_active_ad_ids(account, args.limit_ads)
+        if new_ad_ids:
+            limited_set = set(limited_ad_ids)
+            original_count = len(new_ad_ids)
+            new_ad_ids = [ad_id for ad_id in new_ad_ids if ad_id in limited_set]
+            print(
+                f"  Limit ads: kept {len(new_ad_ids)}/{original_count} explicit new_ad_ids "
+                f"within first {len(limited_ad_ids)} active ads."
+            )
+        else:
+            new_ad_ids = limited_ad_ids
+            print(f"  Limit ads: running first {len(new_ad_ids)} active ads.")
+        if not new_ad_ids:
+            print("  Limit ads selected no ads; skipping account to avoid a full-account run.")
+            return 0
     event_ids = parse_csv_values(args.event_ids)
     event_batch_id = str(uuid.uuid4())
     slack_route = None
@@ -490,6 +538,8 @@ def run_single_account(
                     catalog_cache_images=args.catalog_cache_images,
                     catalog_fit_images=args.catalog_fit_images,
                     catalog_max_cards=args.catalog_max_cards,
+                    catalog_style=args.catalog_style,
+                    catalog_ai_summary=args.catalog_ai_summary,
                 )
                 if slack_result.get("slack"):
                     if slack_send_tracker is not None:
@@ -643,6 +693,49 @@ def run_policy(account: str, channel: str = "") -> None:
     run_command([str(_policy_python()), "worker.py", "--once", account], cwd=POLICY_DIR, env=env)
 
 
+def fetch_limited_active_ad_ids(account: str, limit_ads: int) -> list[str]:
+    limit = max(0, int(limit_ads))
+    if limit <= 0:
+        return []
+    script = (
+        "import json, os; "
+        "from env_loader import load_project_env; load_project_env(); "
+        "import meta_api; "
+        "account=os.environ['LIMIT_ADS_ACCOUNT']; "
+        "limit=int(os.environ['LIMIT_ADS_COUNT']); "
+        "ads=meta_api.get_active_ads_with_creatives(account_id=account); "
+        "ids=[]; "
+        "\nfor ad in ads:\n"
+        "    ad_id=str(ad.get('id') or '').strip()\n"
+        "    if ad_id:\n"
+        "        ids.append(ad_id)\n"
+        "    if len(ids) >= limit:\n"
+        "        break\n"
+        "print(json.dumps(ids, ensure_ascii=False))"
+    )
+    env = os.environ.copy()
+    env["LIMIT_ADS_ACCOUNT"] = account
+    env["LIMIT_ADS_COUNT"] = str(limit)
+    result = subprocess.run(
+        [str(_policy_python()), "-c", script],
+        cwd=str(POLICY_DIR),
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    if result.returncode != 0:
+        raise SystemExit(f"Limit ads preflight failed for {account}: {result.stderr.strip()}")
+    try:
+        value = json.loads(result.stdout.strip())
+    except json.JSONDecodeError as exc:
+        raise SystemExit(
+            f"Limit ads preflight returned invalid JSON for {account}: {result.stdout.strip()}"
+        ) from exc
+    if not isinstance(value, list):
+        raise SystemExit(f"Limit ads preflight returned non-list JSON for {account}: {value!r}")
+    return [str(ad_id).strip() for ad_id in value if str(ad_id).strip()]
+
+
 def run_policy_macmini(
     account: str,
     *,
@@ -652,6 +745,7 @@ def run_policy_macmini(
     new_ad_ids: list[str] | None = None,
     source: str = "",
 ) -> str:
+    embedded_worker = start_embedded_macmini_worker()
     command = [
         str(_macmini_python()),
         "account_runner.py",
@@ -668,13 +762,16 @@ def run_policy_macmini(
     ]
     if new_ad_ids:
         command.extend(["--new-ad-ids", ",".join(new_ad_ids)])
-    completed = subprocess.run(
-        command,
-        cwd=str(MACMINI_WORKER_DIR),
-        env=os.environ.copy(),
-        capture_output=True,
-        text=True,
-    )
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=str(MACMINI_WORKER_DIR),
+            env=os.environ.copy(),
+            capture_output=True,
+            text=True,
+        )
+    finally:
+        stop_embedded_macmini_worker(embedded_worker)
     if completed.stdout:
         print(completed.stdout, end="")
     if completed.returncode != 0:
@@ -690,6 +787,38 @@ def run_policy_macmini(
         if run_id:
             return run_id
     raise SystemExit(f"macmini policy engine returned no run_id for {account}")
+
+
+def start_embedded_macmini_worker() -> subprocess.Popen | None:
+    enabled = os.environ.get("MACMINI_EMBEDDED_WORKER", "1").strip().lower()
+    if enabled in {"0", "false", "no", "off"}:
+        return None
+    concurrency = max(1, int(os.environ.get("MACMINI_WORKER_CONCURRENCY", "1")))
+    env = os.environ.copy()
+    env.setdefault("WORKER_POLL_SECONDS", "2")
+    print(f"  Starting embedded macmini queue worker concurrency={concurrency}.")
+    return subprocess.Popen(
+        [
+            str(_macmini_python()),
+            "worker_slack.py",
+            "--concurrency",
+            str(concurrency),
+        ],
+        cwd=str(MACMINI_WORKER_DIR),
+        env=env,
+    )
+
+
+def stop_embedded_macmini_worker(process: subprocess.Popen | None) -> None:
+    if process is None or process.poll() is not None:
+        return
+    print(f"  Stopping embedded macmini queue worker pid={process.pid}.")
+    process.terminate()
+    try:
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=5)
 
 
 def run_policy_batch(
@@ -1082,6 +1211,8 @@ def run_slack(
     catalog_cache_images: bool = False,
     catalog_fit_images: bool = False,
     catalog_max_cards: int = 10,
+    catalog_style: str = "v2",
+    catalog_ai_summary: bool = True,
 ) -> dict:
     if slack_format == "catalog":
         command = [
@@ -1100,6 +1231,10 @@ def run_slack(
             command.append("--cache-images")
         if catalog_fit_images:
             command.append("--fit-images")
+        if catalog_style and catalog_style != "classic":
+            command += ["--style", catalog_style]
+            if catalog_ai_summary:
+                command.append("--ai-summary")
         return run_command_json(command, cwd=PROJECT_ROOT)
     if not viewer_url:
         raise SystemExit("Missing --viewer-url or REPORT_VIEWER_URL for Slack send.")

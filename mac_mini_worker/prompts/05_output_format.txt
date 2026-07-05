@@ -60,6 +60,7 @@ Return JSON in exactly this shape:
             "basis_type": "explicit_rule|strong_rule_support",
             "confidence": "high|medium",
             "source_type": "string",
+            "rule_index": 1,
             "rule_id": "string",
             "policy_family": "string",
             "law_name": "string",
@@ -200,6 +201,7 @@ For Thai INPUT_MESSAGE, write user-facing text fields in natural Thai wherever p
 
 Keep these values unchanged:
 
+* rule_index
 * rule_id
 * enum values
 * URLs
@@ -230,6 +232,16 @@ Do not invent:
 If a field is unavailable, return an empty string for that field.
 
 display_reference must be assembled only from supplied source and locator fields when available.
+
+RULE ID RULES
+
+For each policy_check item:
+
+* rule_index is required and must equal the matching RULES_BLOCK rule_index.
+* Prefer returning rule_id as an empty string.
+* If you do return rule_id, copy it exactly from the same RULES_BLOCK item as rule_index.
+* Do not generate, guess, repair, shorten, or transform rule_id values.
+* The backend will resolve rule_index to the canonical database rule_id.
 
 POLICY_CONTEXT RULES
 

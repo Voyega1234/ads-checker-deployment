@@ -8,6 +8,7 @@ Each rule in RULES_BLOCK is formatted as a labeled text block.
 
 A rule may include:
 
+* rule_index: short integer index for this prompt run
 * rule_id: unique policy rule ID
 * short_title: short human-readable rule title
 * rule_text: the main compliance rule to assess against
@@ -22,6 +23,9 @@ Use rule_text as the main authority for policy assessment.
 Use short_title to help understand and name the policy issue.
 Use fix_note only as guidance for a practical rewrite, not as an automatic replacement.
 Use source and locator only for reference fields and display_reference.
+
+For policy_check items, set rule_index to the matching RULES_BLOCK rule_index.
+Do not create, guess, transform, shorten, or repair rule_id values yourself.
 
 Do not create a policy failure merely because a rule appears in RULES_BLOCK.
 A policy failure requires:

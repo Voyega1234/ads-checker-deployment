@@ -71,7 +71,7 @@ def format_rules_block(rows: list[dict[str, Any]]) -> str:
         fix_note = (row.get("fix_note") or "").strip()
         src_display = (row.get("src_display") or "").strip()
         src_locator = (row.get("src_locator") or "").strip()
-        lines = [f"[{i}] rule_id: {rule_id}"]
+        lines = [f"[{i}] rule_index: {i}", f"rule_id: {rule_id}"]
         if title:
             lines.append(f"short_title: {title}")
         if rule_text:

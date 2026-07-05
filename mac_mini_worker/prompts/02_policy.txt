@@ -49,15 +49,10 @@ Use fields as follows:
 RULE APPLICABILITY LOGIC
 
 Before applying any rule, first determine whether the rule is applicable to INPUT_MESSAGE.
-
 A rule is applicable only when the rule source, business category, product or service type, claim type, platform context, or regulated activity reasonably matches the visible INPUT_MESSAGE.
-
 Do not apply rules from an unrelated industry, product category, service category, activity type, or platform context.
-
 IMAGE-ONLY AND OCR-DERIVED INPUT GATING
-
 Some RULES_BLOCK rules apply only to images, visual content, image text, OCR text, visual extraction, screenshots, before-after photos, product labels, packaging images, or other image-derived material.
-
 Before applying any image-only rule, first determine whether the relevant INPUT_MESSAGE content is actually image-derived.
 
 Image-derived content may appear as extracted text, OCR text, or visual-structure text, for example:
@@ -72,27 +67,18 @@ Image-derived content may appear as extracted text, OCR text, or visual-structur
 * Visual text: ...
 
 However, these fields count as image-derived only when the input source, section name, metadata, surrounding structure, or prompt context indicates that they came from an image, OCR process, visual extraction, screenshot, packaging image, product label image, or attached creative.
-
 If the available input is only caption text, body text, post text, ad copy, headline text, primary text, description text, CTA text, landing-page text, or general text not derived from an image, do not apply image-only rules.
-
 Do not fail plain text or caption-only input using an image-only rule merely because the text mentions before-after results, treatment results, transformation, procedure outcomes, appearance changes, product effects, labels, packaging, or similar concepts.
-
 For image-only rules, if there is no image, no OCR text, and no visual extraction available, treat the rule as not applicable. Do not treat the missing image, missing OCR, or missing visual extraction as a violation.
-
 If an applicable image or OCR/visual extraction is present, then evaluate the visible image-derived content together with any caption or ad copy that is clearly part of the same ad creative.
-
 For before-after image rules, apply the rule only when an actual image, OCR text, or visual extraction clearly shows or describes a visual before-after comparison. Caption text alone is not enough to trigger a before-after image rule unless the input also includes the relevant image or image-derived extraction.
-
 If it is uncertain whether the text is image-derived, return pass and place a short note in quick_reference.reviewer_notes instead of creating an issue.
 
 PRODUCT CATEGORY AND INTENDED USE GATE
 
 Before applying any regulated-category rule, determine the product/service category from the visible INPUT_MESSAGE, product name, hashtags, images/text if available, and ordinary commercial context.
-
 Do not classify a product or service into a regulated category merely because it uses broad functional, lifestyle, wellness, hygiene, comfort, safety, support, ergonomic, clean, care, protect, premium, natural, healthy, smart, professional, clinical-sounding, or technical wording.
-
 Regulated-category applicability must be based on visible intended use and concrete claims, not on product name, hashtag, keyword similarity, or retrieved RULES_BLOCK category alone.
-
 A rule category is applicable only when INPUT_MESSAGE visibly promotes, implies, or omits something that belongs to that regulated category.
 
 Examples of ordinary consumer categories that should not be treated as regulated by default include, but are not limited to:
@@ -122,15 +108,10 @@ For any product category, apply regulated rules only when the visible INPUT_MESS
 * mandatory-on-ad information that is clearly required by an applicable RULES_BLOCK rule for the visible product/service category
 
 Do not apply medical-device rules merely because the ad mentions ergonomic, posture, support, stool, chair, cushion, wearable, assistive-looking design, comfort, safety, hygiene, bathroom, home use, or wellness.
-
 Do not apply cosmetic rules merely because the ad mentions beauty, clean, glow, care, soft, smooth, fresh, premium, skin-like texture, or appearance, unless INPUT_MESSAGE clearly promotes a cosmetic product or cosmetic effect on the human body.
-
 Do not apply food, drug, or supplement rules merely because the ad mentions healthy, natural, energy, balance, refresh, detox-like lifestyle wording, or wellness, unless INPUT_MESSAGE clearly promotes ingestion, nutrition, supplement use, medicinal use, disease-related benefit, or another covered food/drug/supplement activity.
-
 Do not apply medical-service rules merely because the ad mentions care, professional, expert, clinic-like wording, wellness, beauty, relaxation, or consultation, unless INPUT_MESSAGE clearly promotes medical services, treatment, diagnosis, procedures, healthcare facilities, practitioners, or patient care.
-
 Do not apply financial or investment rules merely because the ad mentions growth, opportunity, value, savings, premium, return-like everyday wording, or business success, unless INPUT_MESSAGE clearly promotes investment, returns, securities, digital assets, loans, credit, insurance, financial products, or another covered financial activity.
-
 If a product name or hashtag contains a potentially regulated or health-adjacent word, treat it as product identification only unless the surrounding visible ad copy turns it into a concrete regulated claim.
 
 Examples:
@@ -169,12 +150,9 @@ VISIBLE AD CONTENT LOGIC
 
 This checker reviews the visible advertising content.
 It does not verify whether the advertiser actually has evidence, licenses, approvals, registrations, permissions, documents, studies, certificates, backend proof, or operational compliance.
-
 Do not fail a message merely because the ad does not show supporting evidence, substantiation, license documents, approval documents, registration documents, certificates, or backend proof, unless the applicable RULES_BLOCK rule clearly requires that specific information to appear in the advertisement itself.
-
 A claim may require substantiation in real-world operations.
 However, if the rule only implies that the advertiser must have evidence, and does not clearly require that evidence to be stated in the advertisement, the missing evidence must not create a FAIL issue by itself.
-
 Create a FAIL issue for missing information only when the applicable RULES_BLOCK rule clearly says, or strongly supports, that the advertisement itself must include that information.
 
 Examples of required-on-ad information may include:
@@ -433,3 +411,17 @@ If enough information is not available from RULES_BLOCK, leave citation/referenc
 Findings must not be based only on general guidance.
 If a concern is based only on general guidance, do not create an issue.
 Place non-fail concerns in quick_reference.reviewer_notes only.
+
+RULE_TRIGGER_MATCHING
+
+A retrieved rule is only a candidate. It must not become a FAIL issue unless the visible INPUT_MESSAGE satisfies the rule's actual trigger condition in rule_text.
+
+Do not expand a rule's scope from rule_title, category, source name, policy family, or general regulated-industry caution.
+
+Before creating each policy_check item, verify all of the following:
+1. The ad context matches the rule's product/service/category scope.
+2. The flagged_text contains the specific prohibited claim, required omission, or trigger concept described in rule_text.
+3. The issue can be explained using rule_text itself, not merely the rule_title.
+4. If rule_text contains exclusions, exceptions, safe examples, or negative scope guards, those override rule_title/category assumptions.
+
+If the ad only contains adjacent, generic, or contextually related wording but not the actual prohibited trigger, do not create an issue. Put any uncertainty in reviewer_notes instead.

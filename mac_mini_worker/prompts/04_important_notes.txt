@@ -34,6 +34,7 @@ Keep these unchanged:
 
 * JSON keys
 * enum values
+* rule_index
 * rule_id
 * URLs
 * hashtags

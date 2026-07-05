@@ -7,10 +7,12 @@ import { promisify } from "node:util";
 import "./env.js";
 import { postSlackMessage } from "./slack.js";
 import { uploadScreenshotToSupabase } from "./storage.js";
+import { summarizeCardReasons } from "./catalog-summary.js";
 
 const DEFAULT_PLACEHOLDER_IMAGE = "https://dummyimage.com/728x666/f6f7f8/1f2937.png&text=Ad+Compliance";
 const CARD_BODY_TEXT_LIMIT = 200;
-const CARD_FLAGGED_TEXTS_LIMIT = 85;
+const CARD_FLAGGED_TEXTS_LIMIT = 92;
+const CARD_SUMMARY_TEXT_LIMIT = 86;
 const REVISED_TEXT_PREVIEW_LIMIT = 2500;
 const REVISED_TEXT_CHUNK_LIMIT = 2500;
 const execFileAsync = promisify(execFile);
@@ -28,23 +30,42 @@ async function main() {
   const cacheImages = args["no-cache-images"] === true
     ? false
     : fitImages || args["cache-images"] === true || envFlag("CATALOG_CACHE_IMAGES", true);
-  const blocks = await buildCatalogBlocks(alert, {
-    maxCards,
-    cacheImages,
-    fitImages,
-    issueIndexOffset
-  });
+  const style = resolveCatalogStyle(args.style);
+  const aiSummary = args["no-ai-summary"] === true
+    ? false
+    : args["ai-summary"] === true || envFlag("CATALOG_AI_SUMMARY", true);
+  const displaySuppressedPolicyRuleIds = await resolveCatalogDisplaySuppressedPolicyRuleIds(alert, args);
+  const visibleAlert = await applyCatalogRuleIdValidation(
+    applyCatalogDisplayOverrides(alert, displaySuppressedPolicyRuleIds)
+  );
+
+  const reportUrl = args["upload-report"] && !args["dry-run-blocks"]
+    ? await uploadReportJson(visibleAlert, Buffer.from(JSON.stringify(visibleAlert, null, 2)))
+    : null;
+
+  const blocks = style === "v2"
+    ? await buildCatalogBlocksV2(visibleAlert, {
+        maxCards,
+        cacheImages,
+        fitImages,
+        issueIndexOffset,
+        aiSummary,
+        channelId
+      })
+    : await buildCatalogBlocks(visibleAlert, {
+        maxCards,
+        cacheImages,
+        fitImages,
+        issueIndexOffset,
+        channelId
+      });
 
   if (args["dry-run-blocks"]) {
     console.log(JSON.stringify({ blocks }, null, 2));
     return;
   }
 
-  const reportUrl = args["upload-report"]
-    ? await uploadReportJson(alert, Buffer.from(JSON.stringify(alert, null, 2)))
-    : null;
-
-  if (!Number(alert.meta?.threadCount || 0) && !args["send-empty"]) {
+  if (!Number(visibleAlert.meta?.threadCount || 0) && !args["send-empty"]) {
     console.log(JSON.stringify({ reportUrl, skippedSlack: true, reason: "no_open_issues" }, null, 2));
     return;
   }
@@ -52,20 +73,20 @@ async function main() {
   const response = await postSlackMessage({
     botToken: getSlackToken(),
     channelId,
-    text: `Ad Compliance Catalog: ${alert.meta?.clientName || alert.meta?.accountName || "Report"}`,
+    text: `Ad Compliance Catalog: ${visibleAlert.meta?.clientName || visibleAlert.meta?.accountName || "Report"}`,
     blocks
   });
 
   if (args["log-send"]) {
     await logSlackSend({
-      alert,
+      alert: visibleAlert,
       channelId,
       slackTs: response.ts,
       reportUrl,
       status: "sent"
     });
     await logSlackSendIssues({
-      alert,
+      alert: visibleAlert,
       channelId,
       slackTs: response.ts,
       reportUrl,
@@ -77,7 +98,247 @@ async function main() {
   console.log(JSON.stringify({ reportUrl, slack: { channelId, ts: response.ts } }, null, 2));
 }
 
-async function buildCatalogBlocks(alert, { maxCards, cacheImages, fitImages, issueIndexOffset }) {
+async function resolveCatalogDisplaySuppressedPolicyRuleIds(alert, args) {
+  const explicitRuleIds = parseCsv([
+    args["ignore-rule-ids"],
+    args["display-ignore-rule-ids"],
+    process.env.CATALOG_DISPLAY_IGNORE_RULE_IDS,
+    process.env.AD_COMPLIANCE_DISPLAY_IGNORE_RULE_IDS
+  ].filter(Boolean).join(","));
+  const priorityRuleIds = args["no-priority-ignores"] === true
+    ? []
+    : await fetchDisplayIgnoredPolicyRuleIdsByPriority(
+        parseCsv(process.env.CATALOG_DISPLAY_IGNORE_RULE_PRIORITIES || process.env.AD_COMPLIANCE_DISPLAY_IGNORE_RULE_PRIORITIES || "")
+      );
+  const clientRuleIds = args["no-client-ignores"] === true
+    ? []
+    : await fetchClientDisplayIgnoredPolicyRuleIds(getCatalogClientIds(alert));
+  return new Set([...explicitRuleIds, ...priorityRuleIds, ...clientRuleIds]);
+}
+
+async function fetchDisplayIgnoredPolicyRuleIdsByPriority(priorities) {
+  const uniquePriorities = unique(priorities).filter((priority) => /^\d+$/.test(priority));
+  if (!uniquePriorities.length) return [];
+  const { supabaseUrl, supabaseKey } = getOptionalSupabaseEnv();
+  if (!supabaseUrl || !supabaseKey) return [];
+
+  const ruleIds = new Set();
+  for (const priority of uniquePriorities) {
+    const query = new URL(`${supabaseUrl}/rest/v1/policy_rules`);
+    query.searchParams.set("select", "id");
+    query.searchParams.set("priority", `eq.${priority}`);
+    query.searchParams.set("is_active", "eq.true");
+    try {
+      const rows = await fetchSupabaseJson(query, supabaseKey, `priority ${priority} policy rules`);
+      for (const row of rows || []) {
+        const ruleId = `${row.id || ""}`.trim();
+        if (ruleId) ruleIds.add(ruleId);
+      }
+    } catch (error) {
+      console.warn(`Catalog priority ignores skipped for priority ${priority}: ${error.message}`);
+    }
+  }
+  return [...ruleIds];
+}
+
+async function fetchClientDisplayIgnoredPolicyRuleIds(clientIds) {
+  const normalizedClientIds = unique(clientIds);
+  if (!normalizedClientIds.length) return [];
+  const { supabaseUrl, supabaseKey } = getOptionalSupabaseEnv();
+  if (!supabaseUrl || !supabaseKey) return [];
+
+  const ruleIds = new Set();
+  for (const clientId of normalizedClientIds) {
+    const query = new URL(`${supabaseUrl}/rest/v1/client_policy_rule_ignores`);
+    query.searchParams.set("select", "rule_id");
+    query.searchParams.set("client_id", `eq.${clientId}`);
+    query.searchParams.set("is_ignored", "eq.true");
+    try {
+      const rows = await fetchSupabaseJson(query, supabaseKey, "client policy rule ignores");
+      for (const row of rows || []) {
+        const ruleId = `${row.rule_id || ""}`.trim();
+        if (ruleId) ruleIds.add(ruleId);
+      }
+    } catch (error) {
+      console.warn(`Catalog client ignores skipped for ${clientId}: ${error.message}`);
+    }
+  }
+  return [...ruleIds];
+}
+
+function getCatalogClientIds(alert) {
+  const meta = alert?.meta || {};
+  return [
+    meta.clientName,
+    meta.accountName,
+    meta.accountId,
+    String(meta.accountId || "").replace(/^act_/, "")
+  ];
+}
+
+function getOptionalSupabaseEnv() {
+  return {
+    supabaseUrl: trimTrailingSlash(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ""),
+    supabaseKey: process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || ""
+  };
+}
+
+async function fetchSupabaseJson(url, supabaseKey, label) {
+  const response = await fetch(url, {
+    headers: {
+      apikey: supabaseKey,
+      authorization: `Bearer ${supabaseKey}`
+    }
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = body.message || body.error || response.statusText;
+    throw new Error(`${label}: ${response.status} ${message}`);
+  }
+  return Array.isArray(body) ? body : [];
+}
+
+function applyCatalogDisplayOverrides(alert, displaySuppressedPolicyRuleIds) {
+  if (!displaySuppressedPolicyRuleIds?.size) return alert;
+  const threads = Array.isArray(alert.threadMessages) ? alert.threadMessages : [];
+  const threadMessages = threads.map((thread) => applyThreadDisplayOverrides(thread, displaySuppressedPolicyRuleIds));
+  const visibleThreads = threadMessages.filter((thread) => hasVisibleIssue(thread.details || {}));
+  const meta = {
+    ...(alert.meta || {}),
+    threadCount: visibleThreads.length,
+    issueGroupCount: visibleThreads.length,
+    displaySuppressedPolicyRuleCount: displaySuppressedPolicyRuleIds.size
+  };
+  return { ...alert, meta, threadMessages };
+}
+
+async function applyCatalogRuleIdValidation(alert) {
+  const ruleIds = collectCatalogPolicyRuleIds(alert);
+  if (!ruleIds.length) return alert;
+
+  const existingRuleIds = await fetchExistingPolicyRuleIds(ruleIds);
+  if (!existingRuleIds) return alert;
+
+  return clearMissingCatalogPolicyRuleIds(alert, existingRuleIds);
+}
+
+function collectCatalogPolicyRuleIds(alert) {
+  const ruleIds = new Set();
+  for (const thread of Array.isArray(alert?.threadMessages) ? alert.threadMessages : []) {
+    const issues = Array.isArray(thread?.details?.policy?.issues)
+      ? thread.details.policy.issues
+      : [];
+    for (const issue of issues) {
+      const ruleId = `${issue?.rule_id || ""}`.trim();
+      if (isUuid(ruleId)) ruleIds.add(ruleId);
+    }
+  }
+  return [...ruleIds];
+}
+
+async function fetchExistingPolicyRuleIds(ruleIds) {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseKey =
+    process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY;
+  if (!supabaseUrl || !supabaseKey) return null;
+
+  const existing = new Set();
+  for (const chunk of chunkArray(ruleIds, 100)) {
+    const query = new URL(`${trimTrailingSlash(supabaseUrl)}/rest/v1/policy_rules`);
+    query.searchParams.set("select", "id");
+    query.searchParams.set("id", `in.(${chunk.join(",")})`);
+    try {
+      const rows = await fetchSupabaseJson(query, supabaseKey, "policy rule validation");
+      for (const row of rows) {
+        const ruleId = `${row.id || ""}`.trim();
+        if (ruleId) existing.add(ruleId);
+      }
+    } catch (error) {
+      console.warn(`Policy rule validation skipped: ${error.message}`);
+      return null;
+    }
+  }
+  return existing;
+}
+
+function clearMissingCatalogPolicyRuleIds(alert, existingRuleIds) {
+  const threadMessages = (Array.isArray(alert?.threadMessages) ? alert.threadMessages : []).map((thread) => {
+    const details = thread?.details || {};
+    const policy = details.policy || {};
+    const issues = Array.isArray(policy.issues) ? policy.issues : [];
+    if (!issues.length) return thread;
+
+    let changed = false;
+    const nextIssues = issues.map((issue) => {
+      const ruleId = `${issue?.rule_id || ""}`.trim();
+      if (!isUuid(ruleId) || existingRuleIds.has(ruleId)) return issue;
+      changed = true;
+      return {
+        ...issue,
+        invalid_rule_id: ruleId,
+        rule_id: ""
+      };
+    });
+    if (!changed) return thread;
+
+    return {
+      ...thread,
+      details: {
+        ...details,
+        policy: {
+          ...policy,
+          issues: nextIssues
+        }
+      }
+    };
+  });
+
+  return { ...alert, threadMessages };
+}
+
+function chunkArray(values, size) {
+  const chunks = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function applyThreadDisplayOverrides(thread, displaySuppressedPolicyRuleIds) {
+  const details = thread?.details || {};
+  const policy = details.policy || {};
+  const issues = Array.isArray(policy.issues) ? policy.issues : [];
+  if (!issues.length) return thread;
+
+  const visibleIssues = issues.filter((issue) => {
+    const ruleId = `${issue?.rule_id || ""}`.trim();
+    return !ruleId || !displaySuppressedPolicyRuleIds.has(ruleId);
+  });
+  if (visibleIssues.length === issues.length) return thread;
+
+  const hasPolicyAction = visibleIssues.length > 0;
+  const nextPolicy = {
+    ...policy,
+    hasAction: hasPolicyAction,
+    risk: hasPolicyAction ? policy.risk : "Policy OK",
+    issues: visibleIssues,
+    redFlags: hasPolicyAction ? policy.redFlags : [],
+    yellowFlags: hasPolicyAction ? policy.yellowFlags : [],
+    fixNotes: hasPolicyAction
+      ? unique(visibleIssues.map((issue) => issue.fix_note || "").filter(Boolean))
+      : []
+  };
+  const nextDetails = {
+    ...details,
+    policy: nextPolicy
+  };
+  return {
+    ...thread,
+    details: nextDetails
+  };
+}
+
+async function buildCatalogBlocks(alert, { maxCards, cacheImages, fitImages, issueIndexOffset, channelId }) {
   const meta = alert.meta || {};
   const clientName = meta.clientName || meta.accountName || "Unknown client";
   const accountId = meta.accountId || "";
@@ -87,7 +348,8 @@ async function buildCatalogBlocks(alert, { maxCards, cacheImages, fitImages, iss
     cards.push(
       await buildAdCard(thread, index + issueIndexOffset, meta, {
         cacheImages,
-        fitImages
+        fitImages,
+        channelId
       })
     );
   }
@@ -136,7 +398,7 @@ async function buildCatalogBlocks(alert, { maxCards, cacheImages, fitImages, iss
   return blocks;
 }
 
-async function buildAdCard(thread, index, meta, { cacheImages, fitImages }) {
+async function buildAdCard(thread, index, meta, { cacheImages, fitImages, channelId }) {
   const details = thread.details || {};
   const adIds = unique([
     ...(details.newAdIds || []),
@@ -146,57 +408,63 @@ async function buildAdCard(thread, index, meta, { cacheImages, fitImages }) {
   const policyLabel = details.policy?.hasAction ? details.policy.risk || "Policy issue" : "Policy OK";
   const subtitle = `${adIds.length || 1} affected ad${adIds.length === 1 ? "" : "s"} · ${details.isNew ? "New · " : ""}${policyLabel}`;
   const body = buildCardBody(details, adIds);
-  const sourceImageUrls = unique([
-    details.media?.creativeImageUrl,
-    details.media?.imageUrl,
-    details.media?.thumbnailUrl,
-    details.media?.screenshotUrl,
-    findFirstImageUrl(thread),
-    DEFAULT_PLACEHOLDER_IMAGE
-  ]);
+  const sourceImageUrls = getCatalogImageUrls(thread, details);
   const imageUrl = cacheImages
     ? await cacheFirstCatalogImage(sourceImageUrls, meta, thread, index, { fitImages })
     : sourceImageUrls[0];
   const ignorableRules = getIgnorablePolicyRules(details.policy);
   const value = JSON.stringify({
     accountId: meta.accountId || "",
+    account_id: meta.accountId || "",
+    channelId: channelId || "",
+    channel_id: channelId || "",
     issueIndex: index,
+    issue_index: index,
     issueFingerprint: details.issueFingerprint || "",
-    adIds: adIds.slice(0, 10)
+    issue_fingerprint: details.issueFingerprint || "",
+    adIds: adIds.slice(0, 10),
+    ad_ids: adIds.slice(0, 10)
   });
   const ignoreRuleValue = JSON.stringify({
     accountId: meta.accountId || "",
+    account_id: meta.accountId || "",
+    channelId: channelId || "",
+    channel_id: channelId || "",
     clientId: meta.clientName || meta.accountName || "",
+    client_id: meta.clientName || meta.accountName || "",
     issueIndex: index,
+    issue_index: index,
     issueFingerprint: details.issueFingerprint || "",
+    issue_fingerprint: details.issueFingerprint || "",
     adIds: adIds.slice(0, 10),
-    ruleIds: ignorableRules.map((rule) => rule.ruleId).slice(0, 20)
+    ad_ids: adIds.slice(0, 10),
+    ruleIds: ignorableRules.map((rule) => rule.ruleId).slice(0, 20),
+    rule_ids: ignorableRules.map((rule) => rule.ruleId).slice(0, 20)
   });
-  const actions = [
-    {
-      type: "button",
-      text: {
-        type: "plain_text",
-        text: "Details",
-        emoji: false
-      },
-      action_id: "open_ad_compliance_modal",
-      value
-    }
-  ];
+  const actions = [];
 
   if (ignorableRules.length) {
     actions.push({
       type: "button",
       text: {
         type: "plain_text",
-        text: "Ignore rule",
+        text: "Ignore rules",
         emoji: false
       },
       action_id: "open_policy_rule_ignore_modal",
       value: ignoreRuleValue
     });
   }
+  actions.push({
+    type: "button",
+    text: {
+      type: "plain_text",
+      text: "What to fix",
+      emoji: false
+    },
+    action_id: "open_ad_compliance_modal",
+    value
+  });
 
   return {
     type: "card",
@@ -246,9 +514,9 @@ function buildCardBody(details, adIds = []) {
   }
 
   if (policyIssues.length) {
-    const flaggedTexts = unique(
+    const issueEvidence = unique(
       policyIssues
-        .map((issue) => issue.flagged_text || "")
+        .map((issue) => formatPolicyCardIssueEvidence(issue, details))
         .filter(Boolean)
     );
     const issueTitles = unique(
@@ -257,8 +525,8 @@ function buildCardBody(details, adIds = []) {
         .filter(Boolean)
     );
     const baseLines = [...lines, "", "*Policy issue*"];
-    if (flaggedTexts.length) {
-      baseLines.push(`*คำที่พบ:* ${formatFlaggedTextSummary(flaggedTexts)}`);
+    if (issueEvidence.length) {
+      baseLines.push(buildInlineListLine(issueEvidence, "*Issue:* ", 150, " · "));
     }
     if (issueTitles.length) {
       const reasonLines = [...baseLines, `*สาเหตุ:* ${issueTitles.map(escapeMrkdwn).join(", ")}`];
@@ -298,6 +566,365 @@ function buildCardBody(details, adIds = []) {
   return lines.join("\n");
 }
 
+// ---------------------------------------------------------------------------
+// v2 catalog style (severity-led redesign). Default; classic remains available via --style classic.
+// Classic builders above are intentionally left untouched.
+// ---------------------------------------------------------------------------
+
+async function buildCatalogBlocksV2(alert, { maxCards, cacheImages, fitImages, issueIndexOffset, aiSummary, channelId }) {
+  const meta = alert.meta || {};
+  const clientName = meta.clientName || meta.accountName || "Unknown client";
+  const visibleThreads = getSortedVisibleThreads(alert);
+  const visibleCards = visibleThreads.slice(0, maxCards);
+
+  let summaries = new Map();
+  if (aiSummary) {
+    summaries = await summarizeCardReasons(
+      visibleCards.map((thread, index) => ({ index, reasons: getPolicyReasons(thread.details) })),
+      { maxChars: CARD_SUMMARY_TEXT_LIMIT }
+    );
+  }
+
+  const cards = [];
+  for (const [index, thread] of visibleCards.entries()) {
+    cards.push(
+      await buildAdCardV2(thread, index + issueIndexOffset, meta, {
+        cacheImages,
+        fitImages,
+        channelId,
+        summary: summaries.get(index)
+      })
+    );
+  }
+
+  const blocks = [
+    {
+      type: "header",
+      text: {
+        type: "plain_text",
+        text: truncatePlainText(`Ad Compliance · ${clientName}`, 150),
+        emoji: false
+      }
+    },
+    {
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text:
+            `\`${escapeMrkdwn(meta.accountId || "")}\` · ${formatDate(meta.generatedAt)} · ` +
+            `${Number(meta.adCount || 0)} ads · ${Number(meta.creativeCount || 0)} creatives`
+        }
+      ]
+    }
+  ];
+
+  const catalogChips = [];
+  if (Number(meta.policyCreativeCount || 0)) catalogChips.push(`Policy \`${Number(meta.policyCreativeCount)}\``);
+  if (Number(meta.spellingCreativeCount || 0)) catalogChips.push(`Spelling \`${Number(meta.spellingCreativeCount)}\``);
+  if (Number(meta.placementAdCount || 0)) catalogChips.push(`Placement \`${Number(meta.placementAdCount)}\``);
+  if (catalogChips.length) {
+    blocks.push({
+      type: "context",
+      elements: [{ type: "mrkdwn", text: catalogChips.join("  ·  ") }]
+    });
+  }
+
+  if (!cards.length) {
+    blocks.push({
+      type: "section",
+      text: { type: "mrkdwn", text: "No open ad compliance issues." }
+    });
+    return blocks;
+  }
+
+  blocks.push({ type: "carousel", elements: cards });
+
+  blocks.push({
+    type: "context",
+    elements: [
+      {
+        type: "mrkdwn",
+        text: `Showing ${cards.length} of ${visibleThreads.length} issues · sorted by impact`
+      }
+    ]
+  });
+
+  return blocks;
+}
+
+async function buildAdCardV2(thread, index, meta, { cacheImages, fitImages, channelId, summary }) {
+  const details = thread.details || {};
+  const adIds = unique([
+    ...(details.newAdIds || []),
+    ...extractAdIds(thread.text || "")
+  ]);
+  const title = getThreadTitle(thread, index);
+  const adCount = adIds.length || 1;
+  const issueCounts = getIssueCountChips(details, adCount);
+  const subtitle =
+    `${adCount} ad${adCount === 1 ? "" : "s"}` +
+    (issueCounts.length ? ` · ${issueCounts.join(" · ")}` : "") +
+    (details.isNew ? " · New" : "");
+  const body = buildCardBodyV2(details, summary);
+
+  const sourceImageUrls = getCatalogImageUrls(thread, details);
+  const imageUrl = cacheImages
+    ? await cacheFirstCatalogImage(sourceImageUrls, meta, thread, index, { fitImages })
+    : sourceImageUrls[0];
+
+  const ignorableRules = getIgnorablePolicyRules(details.policy);
+  const value = JSON.stringify({
+    accountId: meta.accountId || "",
+    account_id: meta.accountId || "",
+    channelId: channelId || "",
+    channel_id: channelId || "",
+    issueIndex: index,
+    issue_index: index,
+    issueFingerprint: details.issueFingerprint || "",
+    issue_fingerprint: details.issueFingerprint || "",
+    adIds: adIds.slice(0, 10),
+    ad_ids: adIds.slice(0, 10)
+  });
+  const ignoreRuleValue = JSON.stringify({
+    accountId: meta.accountId || "",
+    account_id: meta.accountId || "",
+    channelId: channelId || "",
+    channel_id: channelId || "",
+    clientId: meta.clientName || meta.accountName || "",
+    client_id: meta.clientName || meta.accountName || "",
+    issueIndex: index,
+    issue_index: index,
+    issueFingerprint: details.issueFingerprint || "",
+    issue_fingerprint: details.issueFingerprint || "",
+    adIds: adIds.slice(0, 10),
+    ad_ids: adIds.slice(0, 10),
+    ruleIds: ignorableRules.map((rule) => rule.ruleId).slice(0, 20),
+    rule_ids: ignorableRules.map((rule) => rule.ruleId).slice(0, 20)
+  });
+
+  const actions = [];
+  if (ignorableRules.length) {
+    actions.push({
+      type: "button",
+      text: { type: "plain_text", text: "Ignore rules", emoji: false },
+      action_id: "open_policy_rule_ignore_modal",
+      value: ignoreRuleValue
+    });
+  }
+  actions.push({
+    type: "button",
+    text: { type: "plain_text", text: "What to fix", emoji: false },
+    action_id: "open_ad_compliance_modal",
+    value
+  });
+
+  return {
+    type: "card",
+    block_id: `ad_catalog_${index + 1}`,
+    hero_image: {
+      type: "image",
+      image_url: imageUrl,
+      alt_text: title.slice(0, 120)
+    },
+    title: {
+      type: "mrkdwn",
+      text: truncateMrkdwn(escapeMrkdwn(title), 80),
+      verbatim: false
+    },
+    subtitle: {
+      type: "mrkdwn",
+      text: truncateMrkdwn(subtitle, 120),
+      verbatim: false
+    },
+    body: {
+      type: "mrkdwn",
+      text: truncateMrkdwn(body, CARD_BODY_TEXT_LIMIT),
+      verbatim: false
+    },
+    actions
+  };
+}
+
+function buildCardBodyV2(details, summary) {
+  return getCardEvidence(details, CARD_BODY_TEXT_LIMIT, summary);
+}
+
+function getPolicyReasons(details = {}) {
+  const issues = Array.isArray(details.policy?.issues) ? details.policy.issues : [];
+  return unique(
+    issues.map((issue) => issue.issue_title || issue.short_title || issue.category || "").filter(Boolean)
+  );
+}
+
+function formatPolicyCardIssueEvidence(issue, details = {}) {
+  const flaggedText = String(issue?.flagged_text || "").trim();
+  if (!flaggedText) return "";
+  const solution = getPolicyIssueSolution(issue, details);
+  if (!solution) return formatInlineCode(flaggedText);
+  return `${formatInlineCode(flaggedText)} >> ${formatInlineCode(solution)}`;
+}
+
+function getCardEvidence(details, budget, summary) {
+  const policyIssues = Array.isArray(details.policy?.issues) ? details.policy.issues : [];
+  if (policyIssues.length) {
+    const issueEvidence = unique(
+      policyIssues.map((issue) => formatPolicyCardIssueEvidence(issue, details)).filter(Boolean)
+    );
+    const issuePrefix = "*Issue:* ";
+    const buildIssueLine = (lineBudget) => {
+      if (!issueEvidence.length || lineBudget <= issuePrefix.length + 4) return "";
+      return buildInlineListLine(issueEvidence, issuePrefix, Math.min(lineBudget, 150), " · ");
+    };
+
+    const summaryText = String(summary || "").trim();
+    if (summaryText) {
+      const summaryRaw = escapeMrkdwn(summaryText);
+      const issueBudget = Math.max(0, Math.min(150, budget - summaryRaw.length - 1));
+      const issueLine = buildIssueLine(issueBudget);
+      const summaryBudget = budget - issueLine.length - (issueLine ? 1 : 0);
+
+      const summaryLine = truncateWithoutEllipsis(summaryRaw, Math.max(0, summaryBudget));
+      return [issueLine, summaryLine].filter(Boolean).join("\n");
+    }
+
+    // Fallback (no AI): flagged-words line + bulleted reasons.
+    const reasons = getPolicyReasons(details).map(escapeMrkdwn);
+    const fallbackSummary = buildCompactReasonSummary(reasons);
+    if (fallbackSummary) {
+      const issueBudget = Math.max(0, Math.min(150, budget - fallbackSummary.length - 1));
+      const issueLine = buildIssueLine(issueBudget);
+      const summaryBudget = budget - issueLine.length - (issueLine ? 1 : 0);
+      const summaryLine = truncateWithoutEllipsis(fallbackSummary, Math.max(0, summaryBudget));
+      return [issueLine, summaryLine].filter(Boolean).join("\n");
+    }
+
+    const lines = [];
+    if (issueEvidence.length) {
+      lines.push(buildIssueLine(Math.floor(budget * 0.75)));
+    }
+    const used = lines.length ? lines[0].length + 1 : 0;
+    if (reasons.length) {
+      const bulleted = reasons.map((reason) => `• ${reason}`);
+      lines.push(joinWithinBudget(bulleted, "\n", Math.max(0, budget - used)));
+    }
+    return lines.join("\n");
+  }
+
+  if (details.spelling?.hasAction) {
+    const corrections = getSpellingCorrections(details.spelling);
+    if (!corrections.length) return "ตรวจพบคำที่ต้องแก้ไข";
+    return formatSpellingContextEvidence(corrections, budget);
+  }
+  if (details.placement?.hasAction) {
+    return truncateMrkdwn(
+      `*Issue:* ${formatPlacementContextMrkdwn(details.placement)}`,
+      budget
+    );
+  }
+
+  const signals = getPolicySignals(details.policy).map((signal) =>
+    formatInlineCode(signal.text)
+  );
+  if (signals.length) return joinWithinBudget(signals, ", ", budget);
+  return "";
+}
+
+// Join items with a separator while staying inside the char budget. Extra items
+// are omitted silently so card copy never shows unclear "+N" counters.
+function joinWithinBudget(items, sep, budget) {
+  const out = [];
+  for (let i = 0; i < items.length; i += 1) {
+    const candidate = [...out, items[i]].join(sep);
+    if (candidate.length > budget) {
+      break;
+    }
+    out.push(items[i]);
+  }
+  return out.join(sep);
+}
+
+function buildInlineListLine(items, prefix, budget, sep = ", ") {
+  if (!items.length || budget <= prefix.length + 2) return "";
+  const visible = [];
+  for (const item of items) {
+    const nextVisible = [...visible, item];
+    const candidate = `${prefix}${nextVisible.join(sep)}`;
+    if (candidate.length <= budget) {
+      visible.push(item);
+    } else if (!visible.length) {
+      const maxItemLength = budget - prefix.length;
+      const shortened = truncateInlineCodeWithDots(item, maxItemLength);
+      if (shortened) visible.push(shortened);
+      break;
+    }
+  }
+  if (!visible.length) return "";
+  return `${prefix}${visible.join(sep)}`;
+}
+
+function buildCompactReasonSummary(reasons) {
+  const cleaned = unique(
+    (reasons || [])
+      .map((reason) => String(reason || "").replace(/^[-•\s]+/g, "").trim())
+      .filter(Boolean)
+  );
+  if (!cleaned.length) return "";
+  if (cleaned.length === 1) return cleaned[0];
+  const first = cleaned[0].replace(/^การ/g, "").trim();
+  return first;
+}
+
+function formatSpellingContextEvidence(corrections, budget) {
+  const firstCorrection = String(corrections?.[0] || "").trim();
+  if (!firstCorrection) return "ตรวจพบคำที่ต้องแก้ไข";
+
+  const [original, corrected] = firstCorrection.split(/\s*→\s*/);
+  const text = original && corrected
+    ? `*Issue:* ตรวจพบคำผิด ${original}\n→ ${corrected}`
+    : `*Issue:* ตรวจพบคำผิด ${firstCorrection}`;
+  return truncateMrkdwn(text, budget);
+}
+
+function truncateInlineCodeWithDots(value, limit) {
+  const text = String(value || "");
+  if (text.length <= limit) return text;
+  if (limit <= 5) return "";
+  if (!text.startsWith("`") || !text.endsWith("`")) {
+    return `${text.slice(0, Math.max(0, limit - 3)).trimEnd()}...`;
+  }
+  const inner = text.slice(1, -1);
+  const innerLimit = limit - 2;
+  if (innerLimit <= 3) return "";
+  return `\`${inner.slice(0, Math.max(0, innerLimit - 3)).trimEnd()}...\``;
+}
+
+function truncateWithoutEllipsis(value, limit) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!limit || limit <= 0) return "";
+  if (text.length <= limit) return text;
+  const sliced = text.slice(0, limit).trimEnd();
+  return sliced.replace(/[\s,.;:!?/|()[\]{}"'“”‘’、，。]+$/g, "");
+}
+
+function getIssueCountChips(details = {}, affectedAdCount = 1) {
+  const policyCount = getPolicySignals(details.policy).length;
+  const spellingCount = details.spelling?.hasAction
+    ? Math.max(getSpellingCorrections(details.spelling).length, 1)
+    : 0;
+  const placementCount = details.placement?.hasAction ? Math.max(affectedAdCount, 1) : 0;
+  return [
+    policyCount > 0 ? `Policy: ${policyCount}` : "",
+    spellingCount > 0 ? `Spell Check: ${spellingCount}` : "",
+    placementCount > 0 ? `Placement: ${placementCount}` : ""
+  ].filter(Boolean);
+}
+
+function resolveCatalogStyle(value) {
+  const raw = String(value || process.env.CATALOG_STYLE || "v2").trim().toLowerCase();
+  return raw === "v2" || raw === "new" ? "v2" : "classic";
+}
+
 function hasVisibleIssue(details) {
   return (
     getPolicySignals(details.policy).length > 0 ||
@@ -312,16 +939,27 @@ function getSortedVisibleThreads(alert) {
     .map((thread, originalIndex) => ({
       thread,
       originalIndex,
-      affectedAdCount: getAffectedAdCount(thread)
+      affectedAdCount: getAffectedAdCount(thread),
+      issuePriority: getIssuePriority(thread.details || {})
     }))
     .filter((item) => hasVisibleIssue(item.thread.details || {}))
     .sort((a, b) => {
+      if (a.issuePriority !== b.issuePriority) {
+        return a.issuePriority - b.issuePriority;
+      }
       if (b.affectedAdCount !== a.affectedAdCount) {
         return b.affectedAdCount - a.affectedAdCount;
       }
       return a.originalIndex - b.originalIndex;
     })
     .map((item) => item.thread);
+}
+
+function getIssuePriority(details = {}) {
+  if (details.placement?.hasAction) return 0;
+  if (getPolicySignals(details.policy).length > 0) return 1;
+  if (details.spelling?.hasAction) return 2;
+  return 3;
 }
 
 function getAffectedAdCount(thread) {
@@ -369,22 +1007,40 @@ function getIgnorablePolicyRules(policy = {}) {
       .map((issue) => {
         const ruleId = `${issue?.rule_id || ""}`.trim();
         if (!ruleId) return null;
+        if (!isUuid(ruleId)) return null;
         const title =
           issue.issue_title ||
           issue.short_title ||
           issue.category ||
           issue.flagged_text ||
           "Policy issue";
+        const cleanTitle = normalizeInlineText(title);
+        const flaggedText = normalizeInlineText(issue.flagged_text || "");
+        const reference = formatIssueReference(issue, { includeRuleId: false });
         return {
           ruleId,
-          title: `${title}`.trim(),
-          flaggedText: `${issue.flagged_text || ""}`.trim(),
-          reference: formatIssueReference(issue, { includeRuleId: false })
+          title: cleanTitle,
+          optionText: truncatePlainText(cleanTitle, 150),
+          modalText: buildIgnoreRuleModalText({ title: cleanTitle, flaggedText, reference }),
+          flaggedText,
+          reference
         };
       })
       .filter(Boolean),
     (rule) => rule.ruleId
   );
+}
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value || ""));
+}
+
+function buildIgnoreRuleModalText({ title, flaggedText, reference }) {
+  return [
+    `*${escapeMrkdwn(title)}*`,
+    flaggedText ? `*Issue:* ${formatInlineCode(flaggedText)}` : "",
+    reference ? `_Ref: ${escapeMrkdwn(reference)}_` : ""
+  ].filter(Boolean).join("\n");
 }
 
 function extractSpellingSource(value) {
@@ -451,39 +1107,179 @@ function formatFlaggedTextSummary(flaggedTexts, {
   const visibleTexts = [];
   for (const text of texts.slice(0, maxItems)) {
     const candidateTexts = [...visibleTexts, text];
-    const remaining = texts.length - candidateTexts.length;
-    const candidate =
-      candidateTexts.map(formatInlineCode).join(" · ") +
-      (remaining > 0 ? ` +${remaining}` : "");
+    const candidate = candidateTexts.map(formatInlineCode).join(" · ");
     if (candidate.length > maxChars) break;
     visibleTexts.push(text);
   }
 
   if (visibleTexts.length) {
-    const remaining = texts.length - visibleTexts.length;
-    return (
-      visibleTexts.map(formatInlineCode).join(" · ") +
-      (remaining > 0 ? ` +${remaining}` : "")
-    );
+    return visibleTexts.map(formatInlineCode).join(" · ");
   }
 
-  const firstText = truncatePlainText(texts[0], Math.max(24, maxChars - 14));
-  return `${formatInlineCode(firstText)} +${texts.length - 1}`;
+  const firstText = truncatePlainText(texts[0], Math.max(24, maxChars));
+  return formatInlineCode(firstText);
+}
+
+function formatPolicyIssueForModal(issue, details = {}) {
+  const title =
+    issue.issue_title ||
+    issue.flagged_text ||
+    issue.category ||
+    "Policy issue";
+  const issueText = formatPolicyIssueEvidence(issue, details, title);
+  const reference = formatIssueReference(issue);
+  const referenceMeaning = formatPolicyReferenceMeaning(issue, title);
+  const referenceText = reference
+    ? ["*Reference:*", escapeMrkdwn(reference), referenceMeaning].filter(Boolean).join("\n")
+    : "";
+  const referenceReason = formatPolicyReferenceReason(issue);
+  return [
+    `• *${escapeMrkdwn(title)}*`,
+    issueText,
+    referenceText,
+    referenceReason
+  ].filter(Boolean).join("\n\n");
+}
+
+function formatFallbackPolicySignalForModal(signal) {
+  const prefix = signal.type === "fix" ? "คำแนะนำ" : "Issue";
+  const text = signal.type === "fix"
+    ? escapeMrkdwn(normalizeInlineText(signal.text))
+    : formatInlineCode(signal.text);
+  return `${prefix}: ${text}`;
+}
+
+function formatPolicyIssueEvidence(issue, details, title) {
+  if (
+    !issue.flagged_text ||
+    normalizeComparableText(issue.flagged_text) === normalizeComparableText(title)
+  ) {
+    return "";
+  }
+  const solution = getPolicyIssueSolution(issue, details);
+  return [
+    `*Issue:* ${formatInlineCode(issue.flagged_text)}`,
+    solution ? ` >> ${formatInlineCode(solution)}` : ""
+  ].join("");
+}
+
+function getPolicyIssueSolution(issue, details = {}) {
+  const replacement = extractReplacementFromRevisedText(
+    issue.flagged_text,
+    details.originalText,
+    details.revisedText
+  );
+  if (replacement !== null) return replacement || "ลบออก";
+  return extractSolutionFromFixNote(issue.fix_note);
+}
+
+function extractReplacementFromRevisedText(flaggedText, originalText, revisedText) {
+  const flagged = String(flaggedText || "").trim();
+  const original = String(originalText || "");
+  const revised = String(revisedText || "");
+  if (!flagged || !original || !revised) return null;
+  const originalIndex = original.indexOf(flagged);
+  if (originalIndex < 0 || revised.includes(flagged)) return null;
+
+  const before = original.slice(0, originalIndex);
+  const after = original.slice(originalIndex + flagged.length);
+  const beforeAnchor = findMatchingTrailingAnchor(before, revised);
+  if (!beforeAnchor) return null;
+  const start = revised.indexOf(beforeAnchor) + beforeAnchor.length;
+  const afterAnchor = findMatchingLeadingAnchor(after, revised.slice(start));
+  if (!afterAnchor) return null;
+  const end = revised.indexOf(afterAnchor, start);
+  if (end < start) return null;
+  return normalizeInlineText(revised.slice(start, end));
+}
+
+function findMatchingTrailingAnchor(text, target) {
+  const compact = text.replace(/\s+$/g, "");
+  for (const length of [80, 60, 40, 24, 12]) {
+    const anchor = compact.slice(-length);
+    if (anchor && target.includes(anchor)) return anchor;
+  }
+  return "";
+}
+
+function findMatchingLeadingAnchor(text, target) {
+  const compact = text.replace(/^\s+/g, "");
+  for (const length of [80, 60, 40, 24, 12]) {
+    const anchor = compact.slice(0, length);
+    if (anchor && target.includes(anchor)) return anchor;
+  }
+  return "";
+}
+
+function extractSolutionFromFixNote(fixNote) {
+  const text = normalizeInlineText(fixNote || "");
+  if (!text) return "";
+  const quotedSolution = text.match(/(?:แก้ไขเป็น|ปรับเป็น|เปลี่ยนเป็น|เป็น|เช่น)\s*["'“”‘’]([^"'“”‘’]+)["'“”‘’]/);
+  if (quotedSolution?.[1]) return quotedSolution[1];
+  if (/^ลบ/.test(text)) return "ลบออก";
+  return truncatePlainText(text, 160);
+}
+
+function formatPolicyReferenceReason(issue) {
+  const reason = normalizeInlineText(issue.issue_detail || "");
+  if (!reason) return "";
+  return `*Reason:*\n"${escapeMrkdwn(truncatePlainText(reason, 180))}"`;
+}
+
+function formatPolicyReferenceMeaning(issue, title) {
+  const meaning = [issue.reference_section, title]
+    .map(normalizeInlineText)
+    .find((value) => value && !isReferenceLocatorLike(value));
+  if (!meaning) return "";
+  return `Policy meaning: ${escapeMrkdwn(truncatePlainText(meaning, 120))}`;
+}
+
+function isReferenceLocatorLike(value) {
+  return /^(ข้อ|หน้า|section|rule)\s*[\d().\-–/]+/i.test(normalizeInlineText(value));
+}
+
+function formatPlacementIssueForModal(placement) {
+  return [
+    "*Placements*",
+    `*Issue:* ${formatPlacementContextMrkdwn(placement)}`
+  ].filter(Boolean).join("\n");
+}
+
+function formatPlacementContextMrkdwn(placement = {}) {
+  const finding = normalizeInlineText(placement.finding || "");
+  const formats = Array.isArray(placement.formats)
+    ? placement.formats.map(formatPlacementName).filter(Boolean)
+    : [];
+  const channelText = formats.length
+    ? ` ในช่องทาง ${formats.map(formatInlineCode).join(" , ")}`
+    : "";
+  if (!finding) return `ตรวจพบ ${formatInlineCode("ปัญหา placement")}${channelText}`;
+  const findingText = finding.startsWith("ตรวจพบ")
+    ? escapeMrkdwn(finding)
+    : `ตรวจพบ ${escapeMrkdwn(finding)}`;
+  return `${findingText}${channelText}`;
 }
 
 function formatInlineCode(value) {
-  const text = String(value || "").replace(/`/g, "'").trim();
+  const text = normalizeInlineText(value).replace(/`/g, "'").trim();
   if (!text) return "";
   return `\`${escapeMrkdwn(text)}\``;
+}
+
+function normalizeInlineText(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function getThreadTitle(thread, index) {
   const text = String(thread.text || "");
   const match = text.match(/^\*([^*]+)\*/);
-  if (match?.[1]) return match[1];
+  if (match?.[1]) return normalizeInlineText(match[1]);
   const firstSection = (thread.blocks || []).find((block) => block.type === "section" && block.text?.text);
   const sectionMatch = String(firstSection?.text?.text || "").match(/^\*([^*]+)\*/);
-  if (sectionMatch?.[1]) return sectionMatch[1];
+  if (sectionMatch?.[1]) return normalizeInlineText(sectionMatch[1]);
   return `Ad issue ${index + 1}`;
 }
 
@@ -502,6 +1298,28 @@ function findFirstImageUrl(value) {
     if (found) return found;
   }
   return "";
+}
+
+function getCatalogImageUrls(thread, details = {}) {
+  const media = details.media || {};
+  const urls = details.placement?.hasAction
+    ? [
+        media.screenshotUrl,
+        findFirstImageUrl(thread),
+        media.creativeImageUrl,
+        media.imageUrl,
+        media.thumbnailUrl,
+        DEFAULT_PLACEHOLDER_IMAGE
+      ]
+    : [
+        media.creativeImageUrl,
+        media.imageUrl,
+        media.thumbnailUrl,
+        media.screenshotUrl,
+        findFirstImageUrl(thread),
+        DEFAULT_PLACEHOLDER_IMAGE
+      ];
+  return unique(urls.filter((url) => typeof url === "string" && url.trim()));
 }
 
 async function uploadReportJson(alert, reportJson) {
@@ -781,11 +1599,11 @@ function buildIssueModalBlocks(alert, thread, issueIndex, adIds) {
   const details = thread.details || {};
   const issueName = getThreadTitle(thread, issueIndex);
   const policyIssues = Array.isArray(details.policy?.issues) ? details.policy.issues : [];
-  const spellingFixes = Array.isArray(details.spelling?.fixes) ? details.spelling.fixes : [];
   const issueTypes = [];
+  if (details.placement?.hasAction) issueTypes.push("Placement");
   if (details.policy?.hasAction) issueTypes.push("Policy");
   if (details.spelling?.hasAction) issueTypes.push("Spelling");
-  if (details.placement?.hasAction) issueTypes.push("Placement");
+  const affectedAdCount = Math.max(adIds.length, getAffectedAdCount(thread) || 1);
 
   const blocks = [
     {
@@ -793,49 +1611,9 @@ function buildIssueModalBlocks(alert, thread, issueIndex, adIds) {
       text: {
         type: "mrkdwn",
         text:
-          `*${escapeMrkdwn(meta.clientName || meta.accountName || "Ad Compliance")}*\n` +
-          `\`${escapeMrkdwn(meta.accountId || "")}\``
+          `*${escapeMrkdwn(issueTypes.join(" + ") || "Issue")} · ` +
+          `${affectedAdCount} affected ad${affectedAdCount === 1 ? "" : "s"}*`
       }
-    },
-    {
-      type: "section",
-      fields: [
-        {
-          type: "mrkdwn",
-          text: `*Affected ads*\n${Number(meta.adCount || 0)} ads · ${Number(meta.creativeCount || 0)} creatives`
-        },
-        {
-          type: "mrkdwn",
-          text: `*Policy*\n${Number(meta.policyCreativeCount || 0)} creatives`
-        },
-        {
-          type: "mrkdwn",
-          text: `*Spelling*\n${Number(meta.spellingCreativeCount || 0)} creatives`
-        },
-        {
-          type: "mrkdwn",
-          text: `*Placement*\n${Number(meta.placementAdCount || 0)} ads`
-        }
-      ]
-    },
-    { type: "divider" },
-    {
-      type: "header",
-      text: {
-        type: "plain_text",
-        text: truncatePlainText(`Issue ${issueIndex + 1} · ${issueName}`, 145)
-      }
-    },
-    {
-      type: "context",
-      elements: [
-        {
-          type: "mrkdwn",
-          text:
-            `*${escapeMrkdwn(issueTypes.join(" + ") || "Issue")}* · ` +
-            `*${adIds.length || 1} affected ad${adIds.length === 1 ? "" : "s"}*`
-        }
-      ]
     }
   ];
 
@@ -855,123 +1633,51 @@ function buildIssueModalBlocks(alert, thread, issueIndex, adIds) {
     });
   }
 
-  if (details.policy?.hasAction) {
-    const policySignals = getPolicySignals(details.policy);
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: truncateMrkdwn(`*Ad Name:* ${formatInlineCode(issueName)}`, 2500)
+    }
+  });
+
+  if (details.placement?.hasAction) {
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*Policy · ${escapeMrkdwn(details.policy.risk || "Issue")}*\n*Problems*`
+        text: truncateMrkdwn(formatPlacementIssueForModal(details.placement), 2500)
       }
     });
-
-    const visiblePolicyIssues = policyIssues.slice(0, 5);
-    const visibleFallbackSignals = !visiblePolicyIssues.length
-      ? policySignals.slice(0, 5)
-      : [];
-    visiblePolicyIssues.forEach((issue, index) => {
-      const title =
-        issue.issue_title ||
-        issue.flagged_text ||
-        issue.category ||
-        "Policy issue";
-      const flaggedText = issue.flagged_text &&
-        normalizeComparableText(issue.flagged_text) !== normalizeComparableText(title)
-        ? `\nคำที่พบ: ${formatInlineCode(issue.flagged_text)}`
-        : "";
-      const reference = formatIssueReference(issue);
-      const referenceText = reference ? `\nอ้างอิง: ${escapeMrkdwn(reference)}` : "";
+    const imageUrl = firstModalImageUrl(thread, details);
+    if (imageUrl) {
       blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: truncateMrkdwn(`*${escapeMrkdwn(title)}*${flaggedText}${referenceText}`, 2500)
-        }
-      });
-      if (index < visiblePolicyIssues.length - 1) {
-        blocks.push({ type: "divider" });
-      }
-    });
-    visibleFallbackSignals.forEach((signal, index) => {
-      const prefix = signal.type === "fix" ? "คำแนะนำ" : "คำที่พบ";
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: truncateMrkdwn(`*${prefix}*\n${formatInlineCode(signal.text)}`, 2500)
-        }
-      });
-      if (index < visibleFallbackSignals.length - 1) {
-        blocks.push({ type: "divider" });
-      }
-    });
-
-    const fixNotes = unique(
-      policyIssues.map((issue) => issue.fix_note || "").filter(Boolean)
-    ).slice(0, 5);
-    if (fixNotes.length) {
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: truncateMrkdwn(
-            `*Recommended fixes*\n${fixNotes.map((fix) => `• ${escapeMrkdwn(fix)}`).join("\n")}`,
-            2500
-          )
+        type: "image",
+        image_url: imageUrl,
+        alt_text: truncatePlainText(issueName || "Ad preview", 200),
+        title: {
+          type: "plain_text",
+          text: truncatePlainText(issueName || "Ad preview", 145)
         }
       });
     }
+
+    if (shouldShowRevisedText(details) || details.policy?.hasAction || details.spelling?.hasAction) {
+      blocks.push({ type: "divider" });
+    }
   }
 
-  if (details.spelling?.hasAction) {
-    const spellingCorrections = getSpellingCorrections(details.spelling).slice(0, 5);
+  if (details.policy?.hasAction || details.spelling?.hasAction) {
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: truncateMrkdwn(
-          `*Spelling*\n${
-            spellingCorrections.length
-              ? spellingCorrections.map((fix) => `• ${fix}`).join("\n")
-              : "Corrections required"
-          }`,
-          2500
-        )
+        text: "*Policy / Spell check*"
       }
     });
   }
 
-  if (details.placement?.hasAction) {
-    const formats = Array.isArray(details.placement.formats) ? details.placement.formats : [];
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: truncateMrkdwn(
-          `*Placement*\n${escapeMrkdwn(details.placement.finding || "Issue detected")}` +
-            (formats.length
-              ? `\n*Affected formats:* ${formats.map(formatPlacementName).join(" · ")}`
-              : ""),
-          2500
-        )
-      }
-    });
-  }
-
-  const imageUrl = details.placement?.hasAction ? firstModalImageUrl(thread, details) : "";
-  if (imageUrl) {
-    blocks.push({
-      type: "image",
-      image_url: imageUrl,
-      alt_text: truncatePlainText(issueName || "Ad preview", 200),
-      title: {
-        type: "plain_text",
-        text: truncatePlainText(issueName || "Ad preview", 145)
-      }
-    });
-  }
-
-  if (details.revisedText && !isPlacementOnlyIssue(details)) {
+  if (shouldShowRevisedText(details)) {
     blocks.push({
       type: "section",
       text: {
@@ -1004,11 +1710,70 @@ function buildIssueModalBlocks(alert, thread, issueIndex, adIds) {
     }
   }
 
+  if (details.policy?.hasAction) {
+    const policySignals = getPolicySignals(details.policy);
+    const visiblePolicyIssues = policyIssues.slice(0, 5);
+    const visibleFallbackSignals = !visiblePolicyIssues.length
+      ? policySignals.slice(0, 5)
+      : [];
+
+    if (visiblePolicyIssues.length || visibleFallbackSignals.length) {
+      const issueLines = [
+        ...visiblePolicyIssues.map((issue) => formatPolicyIssueForModal(issue, details)),
+        ...visibleFallbackSignals.map(formatFallbackPolicySignalForModal)
+      ].filter(Boolean);
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: truncateMrkdwn(
+            issueLines.join("\n\n"),
+            2500
+          )
+        }
+      });
+    }
+
+    const fixNotes = unique(
+      policyIssues.map((issue) => issue.fix_note || "").filter(Boolean)
+    ).slice(0, 5);
+    if (fixNotes.length) {
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: truncateMrkdwn(
+            `\n*What to fix*\n${fixNotes.map((fix) => `• ${escapeMrkdwn(fix)}`).join("\n")}`,
+            2500
+          )
+        }
+      });
+    }
+  }
+
+  if (details.spelling?.hasAction) {
+    const spellingCorrections = getSpellingCorrections(details.spelling).slice(0, 5);
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: truncateMrkdwn(
+          `*Spelling*\n${
+            spellingCorrections.length
+              ? spellingCorrections.map((fix) => `• ${fix}`).join("\n")
+              : "Corrections required"
+          }`,
+          2500
+        )
+      }
+    });
+  }
+
   return blocks.slice(0, 95);
 }
 
 function buildRevisedTextMeta(details = {}) {
-  if (!details.revisedText || isPlacementOnlyIssue(details)) return {};
+  if (!shouldShowRevisedText(details)) return {};
   const fullText = sanitizeRevisedTextForSlack(cleanRevisedText(details.revisedText));
   if (!fullText) return {};
   return {
@@ -1018,15 +1783,12 @@ function buildRevisedTextMeta(details = {}) {
   };
 }
 
-function isPlacementOnlyIssue(details = {}) {
-  return (
-    Boolean(details.placement?.hasAction) &&
-    !getPolicySignals(details.policy).length &&
-    !Boolean(details.spelling?.hasAction)
-  );
+function shouldShowRevisedText(details = {}) {
+  return Boolean(details.revisedText && (details.policy?.hasAction || details.spelling?.hasAction));
 }
 
 function firstModalImageUrl(thread, details) {
+  if (details.media?.screenshotUrl) return details.media.screenshotUrl;
   if (details.media?.imageUrl) return details.media.imageUrl;
   const imageBlock = (Array.isArray(thread.blocks) ? thread.blocks : []).find(
     (block) => block.type === "image" && block.image_url
@@ -1092,6 +1854,15 @@ function parsePositiveInt(value, fallback) {
 function parseNonNegativeInt(value, fallback) {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function parseCsv(value) {
+  return unique(
+    `${value || ""}`
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+  );
 }
 
 function envFlag(name, fallback) {
@@ -1163,7 +1934,7 @@ function sanitizeRevisedTextForSlack(text) {
 }
 
 function formatRevisedTextBlock(text, limit) {
-  const header = "*Revised text*\n";
+  const header = "\n:heavy_check_mark: *Revised text (Copy and paste this version)*\n";
   const openFence = "```\n";
   const closeFence = "\n```";
   const maxContentLength = Math.max(0, limit - header.length - openFence.length - closeFence.length);
@@ -1172,7 +1943,7 @@ function formatRevisedTextBlock(text, limit) {
 }
 
 function isRevisedTextTruncated(text, limit) {
-  const header = "*Revised text*\n";
+  const header = "\n:heavy_check_mark: *Revised text (Copy and paste this version)*\n";
   const openFence = "```\n";
   const closeFence = "\n```";
   const maxContentLength = Math.max(0, limit - header.length - openFence.length - closeFence.length);
@@ -1203,7 +1974,7 @@ function truncateMrkdwn(value, limit) {
 }
 
 function truncatePlainText(value, limit) {
-  return truncateMrkdwn(`${value || ""}`.replace(/\s+/g, " ").trim(), limit);
+  return truncateMrkdwn(normalizeInlineText(value), limit);
 }
 
 function trimTrailingSlash(value) {

@@ -23,6 +23,8 @@ REQUIRED_FILES = [
     "package.json",
     "src/index.js",
     "src/build-unified-compliance-alert.js",
+    "src/send-report-catalog-to-slack.js",
+    "src/catalog-summary.js",
     "src/send-report-viewer-to-slack.js",
     "src/env.js",
     "v2.0_run-all-ad-acc/worker.py",
@@ -139,6 +141,21 @@ def check_policy_secret_mount(messages: list[str]) -> None:
 
 
 def check_node_syntax(errors: list[str]) -> None:
+    for relative_path in [
+        "src/build-unified-compliance-alert.js",
+        "src/send-report-catalog-to-slack.js",
+        "src/catalog-summary.js",
+    ]:
+        result = subprocess.run(
+            ["node", "--check", relative_path],
+            cwd=PROJECT_ROOT,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if result.returncode != 0:
+            errors.append(f"Node syntax failed for {relative_path}: {result.stderr.strip()}")
+
     command = [
         "node",
         "--input-type=module",

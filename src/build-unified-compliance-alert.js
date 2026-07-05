@@ -202,7 +202,20 @@ async function fetchPolicyRuleIdsByPriority(priority) {
 }
 
 async function fetchDisplayIgnoredPolicyRuleIds() {
-  return new Set();
+  const ruleIds = new Set(parseCsv(process.env.AD_COMPLIANCE_DISPLAY_IGNORE_RULE_IDS || ""));
+  const priorities = parseCsv(process.env.AD_COMPLIANCE_DISPLAY_IGNORE_RULE_PRIORITIES || "")
+    .filter((priority) => /^\d+$/.test(priority));
+
+  for (const priority of priorities) {
+    try {
+      const priorityRuleIds = await fetchPolicyRuleIdsByPriority(priority);
+      for (const ruleId of priorityRuleIds) ruleIds.add(ruleId);
+    } catch (error) {
+      console.warn(`Display ignore priority ${priority} skipped: ${error.message}`);
+    }
+  }
+
+  return ruleIds;
 }
 
 async function fetchClientDisplayIgnoredPolicyRuleIds(clientIds) {

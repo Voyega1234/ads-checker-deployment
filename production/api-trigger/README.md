@@ -79,7 +79,7 @@ Webhook/new-ad body from n8n:
 The default Slack format is `"catalog"`, the carousel/card Slack sender. The
 API passes `--slack-format catalog` to the worker even when the request body
 omits `slackFormat`. Set `"slackFormat": "viewer"` only when you need the old
-report-link message. Catalog cards include the `Details` and `Ignore rule`
+report-link message. Catalog cards include the `What to fix` and `Ignore rule`
 buttons by default.
 Catalog cards use placement screenshots when available and fall back to the ad
 creative thumbnail for policy/spelling-only issues. Catalog images are fitted
@@ -100,6 +100,15 @@ configured recent window (24 hours by default). If a webhook arrives during
 that window, its `meta_ad_status_events` rows remain pending so a later n8n
 poll can submit the accumulated ad/event IDs after the account becomes
 eligible again.
+
+To force immediate processing for a webhook/new-ad request, either set
+`RECENT_SLACK_SKIP=0` on the worker environment or pass:
+
+```json
+{
+  "disableRecentSlackSkip": true
+}
+```
 
 Reusable test payloads are available so n8n can test the new-ad path without
 waiting for fresh Meta webhook events:
@@ -124,7 +133,7 @@ recovery-me
 
 - `RUN_TRIGGER_TOKEN`
 - `REPORT_VIEWER_URL`
-- `TRIGGER_RUNNER=local` for Mac mini, or `TRIGGER_RUNNER=cloud-run` for Cloud Run
+- `TRIGGER_RUNNER=local` for Mac mini (default), or `TRIGGER_RUNNER=cloud-run` for Cloud Run
 - `SLACK_OVERRIDE_CHANNEL_ID` optional debug fallback
 
 For Mac mini:
@@ -146,6 +155,23 @@ curl -X POST http://127.0.0.1:8080/runs \
   -H "Authorization: Bearer <secret>" \
   -H "Content-Type: application/json" \
   -d '{"accountId":"act_1177861947760094","mode":"full","newAdIds":["120243898233580277"]}'
+```
+
+Simulate the n8n new-ad trigger after Mac deploy:
+
+```bash
+# Dry-run: validate payload and generated worker args only.
+production/scripts/test-n8n-new-ad-trigger.sh \
+  --account act_1177861947760094 \
+  --new-ad-ids 120243898233580277 \
+  --channel C0B1ZT7S1HV
+
+# Live: start full workflow through the trigger API and tail the worker log.
+production/scripts/test-n8n-new-ad-trigger.sh \
+  --account act_1177861947760094 \
+  --new-ad-ids 120243898233580277 \
+  --channel C0B1ZT7S1HV \
+  --live
 ```
 
 Trigger all routed accounts for manual/admin testing:
@@ -232,9 +258,9 @@ unique ad-text group count.
 
 `policyEngine` selects the implementation independently:
 
-- `legacy` (default): use `v2.0_run-all-ad-acc`
-- `macmini`: enqueue unique captions in `macmini_worker_jobs` and wait for the
-  `mac_mini_worker/worker_slack.py` queue consumer
+- `macmini` (default): enqueue unique captions in `macmini_worker_jobs`; the
+  production worker starts a queue consumer for the duration of the run
+- `legacy`: use `v2.0_run-all-ad-acc`
 
 ```json
 {

@@ -35,7 +35,7 @@ const TEST_PAYLOADS = {
 };
 
 const config = {
-  runner: (process.env.TRIGGER_RUNNER || "cloud-run").trim().toLowerCase(),
+  runner: (process.env.TRIGGER_RUNNER || "local").trim().toLowerCase(),
   pythonBin: process.env.PYTHON_BIN || "python3",
   localLogDir: process.env.TRIGGER_LOG_DIR || path.join(PROJECT_ROOT, "logs", "api-trigger"),
   localRunDir: process.env.TRIGGER_RUN_DIR || path.join(PROJECT_ROOT, "logs", "api-trigger", "runs"),
@@ -47,6 +47,7 @@ const config = {
   defaultChannel: process.env.SLACK_OVERRIDE_CHANNEL_ID || "",
   defaultViewerUrl: process.env.REPORT_VIEWER_URL || DEFAULT_VIEWER_URL,
   defaultSlackFormat: (process.env.SLACK_ALERT_FORMAT || "catalog").trim().toLowerCase(),
+  defaultPolicyEngine: (process.env.POLICY_ENGINE || "macmini").trim().toLowerCase(),
   triggerToken: process.env.RUN_TRIGGER_TOKEN || "",
   allowUnauthenticated: process.env.ALLOW_UNAUTHENTICATED_TRIGGER === "1",
   requireNewAdIds: process.env.REQUIRE_NEW_AD_IDS !== "0"
@@ -208,11 +209,11 @@ function buildWorkerArgs(body) {
     if (!["legacy", "batch", "hybrid"].includes(policyRunner)) throw httpError(400, `invalid policyRunner: ${policyRunner}`);
     args.push("--policy-runner", policyRunner);
   }
-  const policyEngine = String(body.policyEngine || body.policy_engine || "").trim().toLowerCase();
-  if (policyEngine) {
-    if (!["legacy", "macmini"].includes(policyEngine)) throw httpError(400, `invalid policyEngine: ${policyEngine}`);
-    args.push("--policy-engine", policyEngine);
-  }
+  const policyEngine = String(
+    body.policyEngine || body.policy_engine || config.defaultPolicyEngine
+  ).trim().toLowerCase();
+  if (!["legacy", "macmini"].includes(policyEngine)) throw httpError(400, `invalid policyEngine: ${policyEngine}`);
+  args.push("--policy-engine", policyEngine);
   if (body.batchPolicyPollInterval !== undefined || body.batchPollInterval !== undefined) {
     const pollInterval = Number(body.batchPolicyPollInterval ?? body.batchPollInterval);
     if (!Number.isInteger(pollInterval) || pollInterval <= 0) {
@@ -241,6 +242,18 @@ function buildWorkerArgs(body) {
   if (eventIds.length) args.push("--event-ids", eventIds.join(","));
   if (body.markEventsProcessed === true || body.mark_events_processed === true) {
     args.push("--mark-events-processed");
+  }
+
+  if (body.disableRecentSlackSkip === true || body.disable_recent_slack_skip === true) {
+    args.push("--disable-recent-slack-skip");
+  }
+  const recentSlackSkipHours = body.recentSlackSkipHours ?? body.recent_slack_skip_hours;
+  if (recentSlackSkipHours !== undefined) {
+    const hours = Number(recentSlackSkipHours);
+    if (!Number.isFinite(hours) || hours < 0) {
+      throw httpError(400, "recentSlackSkipHours must be a non-negative number");
+    }
+    args.push("--recent-slack-skip-hours", String(hours));
   }
 
   if (body.skipSlack === true) args.push("--skip-slack");

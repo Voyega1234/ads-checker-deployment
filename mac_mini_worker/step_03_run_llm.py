@@ -24,16 +24,33 @@ _LLM_CONFIG = types.GenerateContentConfig(
 
 _MAX_FILTER_ATTEMPTS = 3
 
+RELEVANCE_RESPONSE_SCHEMA: dict[str, Any] = {
+    "type": "OBJECT",
+    "properties": {
+        "rules": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "rule_index": {"type": "INTEGER"},
+                    "applicable": {"type": "BOOLEAN"},
+                },
+                "required": ["rule_index", "applicable"],
+            },
+        },
+    },
+    "required": ["rules"],
+}
+
 
 def _build_rule_relevance_prompt(ad_text: str, rows: list[dict[str, Any]]) -> str:
     """Compact inline prompt: ad caption + retrieved rules -> applicability JSON."""
     rule_lines: list[str] = []
     for i, row in enumerate(rows, start=1):
-        rule_id = row.get("rule_id") or ""
         title = (row.get("rule_title") or "").strip()
         rule_text = (row.get("rule_text") or "").strip()
         src_display = (row.get("src_display") or "").strip()
-        parts = [f"[{i}] rule_id: {rule_id}"]
+        parts = [f"[{i}] rule_index: {i}"]
         if title:
             parts.append(f"rule_title: {title}")
         if rule_text:
@@ -52,35 +69,67 @@ def _build_rule_relevance_prompt(ad_text: str, rows: list[dict[str, Any]]) -> st
         "Mark applicable=true when the rule could reasonably apply to this ad, including "
         "general cross-industry consumer-protection or misleading-claim rules.\n\n"
         "Return JSON only, no other text:\n"
-        '{"rules": [{"rule_id": "<id>", "applicable": true}, '
-        '{"rule_id": "<id>", "applicable": false}]}\n\n'
-        "You must include every rule_id listed below exactly once.\n\n"
+        '{"rules": [{"rule_index": 1, "applicable": true}, '
+        '{"rule_index": 2, "applicable": false}]}\n\n'
+        "You must include every rule_index listed below exactly once. "
+        "Do not output rule_id values.\n\n"
         f"AD CAPTION:\n{ad_text or '(no caption)'}\n\n"
         f"RETRIEVED RULES:\n{rules_block}"
     )
 
 
 def _validate_relevance_response(
-    parsed: dict[str, Any] | None, expected_rule_ids: set[str]
+    parsed: dict[str, Any] | None, index_to_rule_id: dict[int, str]
 ) -> list[dict[str, Any]] | None:
     if not parsed or not isinstance(parsed.get("rules"), list):
         return None
     relevance: list[dict[str, Any]] = []
-    seen_ids: set[str] = set()
+    seen_indexes: set[int] = set()
     for entry in parsed["rules"]:
         if not isinstance(entry, dict):
-            return None
-        rule_id = (entry.get("rule_id") or "").strip()
-        if not rule_id or rule_id in seen_ids:
-            return None
+            continue
+        rule_index = _parse_rule_index(entry.get("rule_index"))
+        if rule_index is None:
+            continue
+        rule_id = index_to_rule_id.get(rule_index)
+        if not rule_id or rule_index in seen_indexes:
+            continue
         applicable = entry.get("applicable")
         if not isinstance(applicable, bool):
-            return None
-        seen_ids.add(rule_id)
-        relevance.append({"rule_id": rule_id, "applicable": applicable})
-    if seen_ids != expected_rule_ids:
+            continue
+        seen_indexes.add(rule_index)
+        relevance.append(
+            {"rule_index": rule_index, "rule_id": rule_id, "applicable": applicable}
+        )
+
+    # If the model returns a valid but incomplete list, keep missing rules as
+    # applicable instead of failing the whole filter. This preserves recall and
+    # avoids the much worse "keep all retrieved rules after 3 failed attempts"
+    # path while still honoring explicit false decisions that did validate.
+    for rule_index, rule_id in sorted(index_to_rule_id.items()):
+        if rule_index not in seen_indexes:
+            relevance.append(
+                {
+                    "rule_index": rule_index,
+                    "rule_id": rule_id,
+                    "applicable": True,
+                    "missing_from_response": True,
+                }
+            )
+
+    if not relevance:
         return None
     return relevance
+
+
+def _parse_rule_index(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    return None
 
 
 def filter_applicable_rules(
@@ -93,8 +142,12 @@ def filter_applicable_rules(
     if not rows or not (ad_text or "").strip():
         return rows, {"skipped": True}
 
-    expected_ids = {r.get("rule_id") for r in rows if r.get("rule_id")}
-    if not expected_ids:
+    index_to_rule_id = {
+        i: str(row.get("rule_id") or "").strip()
+        for i, row in enumerate(rows, start=1)
+        if str(row.get("rule_id") or "").strip()
+    }
+    if not index_to_rule_id:
         return rows, {"skipped": True, "reason": "no rule_ids"}
 
     prompt = _build_rule_relevance_prompt(ad_text, rows)
@@ -103,9 +156,9 @@ def filter_applicable_rules(
 
     for attempt in range(1, _MAX_FILTER_ATTEMPTS + 1):
         attempts = attempt
-        raw = run_llm(prompt, image=None)
+        raw = run_llm(prompt, image=None, response_schema=RELEVANCE_RESPONSE_SCHEMA)
         parsed = parse_json(raw)
-        relevance = _validate_relevance_response(parsed, expected_ids)
+        relevance = _validate_relevance_response(parsed, index_to_rule_id)
         if relevance is not None:
             break
         core.log(
@@ -128,6 +181,7 @@ def filter_applicable_rules(
 
     applicable_ids = {entry["rule_id"] for entry in relevance if entry["applicable"]}
     filtered = [row for row in rows if row.get("rule_id") in applicable_ids]
+    expected_ids = set(index_to_rule_id.values())
     filtered_out = [rid for rid in expected_ids if rid not in applicable_ids]
 
     return filtered, {
@@ -140,18 +194,30 @@ def filter_applicable_rules(
     }
 
 
-def run_llm(prompt: str, image: tuple[bytes, str] | None) -> str:
+def run_llm(
+    prompt: str,
+    image: tuple[bytes, str] | None,
+    response_schema: dict[str, Any] | None = None,
+) -> str:
     """
     Single LLM backend switch.
     Returns the raw model response text.
     """
     if core.LLM_BACKEND == "gemini":
         client = core.get_gemini()
+        config = _LLM_CONFIG
+        if response_schema is not None:
+            config = types.GenerateContentConfig(
+                temperature=core.LLM_TEMPERATURE,
+                seed=core.LLM_SEED,
+                response_mime_type="application/json",
+                response_schema=response_schema,
+            )
         if image is None:
             response = client.models.generate_content(
                 model=core.LLM_MODEL,
                 contents=prompt,
-                config=_LLM_CONFIG,
+                config=config,
             )
         else:
             image_bytes, mime = image
@@ -167,7 +233,7 @@ def run_llm(prompt: str, image: tuple[bytes, str] | None) -> str:
             response = client.models.generate_content(
                 model=core.LLM_MODEL,
                 contents=contents,
-                config=_LLM_CONFIG,
+                config=config,
             )
         return (response.text or "").strip()
 

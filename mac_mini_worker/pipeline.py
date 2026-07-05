@@ -26,10 +26,12 @@ Optional env: EMBEDDING_MODEL, EMBEDDING_DIMENSION, EMBEDDING_MODEL_DB_NAME,
 from __future__ import annotations
 
 import os
+import re
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +40,10 @@ from dotenv import load_dotenv
 
 # --- env loading: prefer a local .env, fall back to the shared embedding .env ---
 _HERE = Path(__file__).resolve().parent
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
 
 
 def _load_env() -> None:
@@ -272,6 +278,7 @@ def _run_single_analysis(
         analysis, attempts, history = step_04.recheck(
             analysis, rows, image, max_recheck_attempts
         )
+    sanitize_meta = sanitize_policy_issue_rule_ids(analysis, rows)
 
     run_meta = {
         "matched_rule_ids": matched_rule_ids,
@@ -284,8 +291,190 @@ def _run_single_analysis(
             "attempts": attempts,
             "history": history,
         },
+        "rule_id_sanitization": sanitize_meta,
     }
     return analysis, run_meta
+
+
+def sanitize_policy_issue_rule_ids(
+    analysis: dict[str, Any] | None,
+    rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """
+    Resolve, repair, or clear fail issue rule_ids that are not exact retrieved UUIDs.
+
+    The model is instructed to identify rules by rule_index, which the backend
+    maps to the canonical UUID from retrieved rows. If older prompts or rechecks
+    still emit rule_id directly, accept exact retrieved UUIDs or repair a unique
+    near-match among retrieved rules. Otherwise keep the issue visible but clear
+    rule_id so downstream ignore flows cannot insert a bad foreign key.
+    """
+    if not isinstance(analysis, dict):
+        return {"resolved_by_index": [], "repaired": [], "cleared": [], "kept": 0}
+
+    issue_lists = find_policy_issue_lists(analysis)
+    if not issue_lists:
+        return {"resolved_by_index": [], "repaired": [], "cleared": [], "kept": 0}
+
+    index_to_rule_id = {
+        i: str(row.get("rule_id") or "").strip()
+        for i, row in enumerate(rows, start=1)
+        if _UUID_RE.match(str(row.get("rule_id") or "").strip())
+    }
+    valid_rule_ids = set(index_to_rule_id.values())
+    resolved_by_index: list[dict[str, Any]] = []
+    repaired: list[dict[str, str]] = []
+    cleared: list[dict[str, str]] = []
+    kept = 0
+    for issue_path, issues in issue_lists:
+        kept += len(issues)
+        for issue in issues:
+            if not isinstance(issue, dict):
+                continue
+            rule_index = parse_rule_index(issue.get("rule_index"))
+            if rule_index is not None:
+                canonical_rule_id = index_to_rule_id.get(rule_index)
+                if canonical_rule_id:
+                    rule_id = str(issue.get("rule_id") or "").strip()
+                    if rule_id and rule_id != canonical_rule_id:
+                        issue["original_rule_id"] = rule_id
+                    issue["rule_id"] = canonical_rule_id
+                    resolved_by_index.append(
+                        {
+                            "path": issue_path,
+                            "rule_index": rule_index,
+                            "rule_id": canonical_rule_id,
+                        }
+                    )
+                    continue
+                issue["invalid_rule_index"] = rule_index
+
+            rule_id = str(issue.get("rule_id") or "").strip()
+            if not _UUID_RE.match(rule_id):
+                repaired_rule_id = resolve_near_miss_rule_id(rule_id, valid_rule_ids)
+                if repaired_rule_id:
+                    issue["original_rule_id"] = rule_id
+                    issue["rule_id"] = repaired_rule_id
+                    repaired.append({"rule_id": rule_id, "repaired_to": repaired_rule_id})
+                    continue
+                if rule_id:
+                    issue["invalid_rule_id"] = rule_id
+                    issue["rule_id"] = ""
+                    cleared.append({"rule_id": rule_id, "reason": "invalid_uuid"})
+                continue
+            if rule_id not in valid_rule_ids:
+                repaired_rule_id = resolve_near_miss_rule_id(rule_id, valid_rule_ids)
+                if repaired_rule_id:
+                    issue["original_rule_id"] = rule_id
+                    issue["rule_id"] = repaired_rule_id
+                    repaired.append({"rule_id": rule_id, "repaired_to": repaired_rule_id})
+                    continue
+                issue["invalid_rule_id"] = rule_id
+                issue["rule_id"] = ""
+                cleared.append({"rule_id": rule_id, "reason": "not_in_retrieved_rules"})
+                continue
+    return {
+        "resolved_by_index": resolved_by_index,
+        "repaired": repaired,
+        "cleared": cleared,
+        "kept": kept,
+    }
+
+
+def find_policy_issue_lists(analysis: dict[str, Any]) -> list[tuple[str, list[Any]]]:
+    candidates: list[tuple[str, Any]] = [
+        ("policy_check", analysis.get("policy_check")),
+        ("issues", analysis.get("issues")),
+    ]
+    caption = analysis.get("caption_analysis")
+    if isinstance(caption, dict):
+        candidates.extend(
+            [
+                ("caption_analysis.policy_check", caption.get("policy_check")),
+                ("caption_analysis.issues", caption.get("issues")),
+            ]
+        )
+    image = analysis.get("image_analysis")
+    if isinstance(image, dict):
+        candidates.extend(
+            [
+                ("image_analysis.policy_check", image.get("policy_check")),
+                ("image_analysis.issues", image.get("issues")),
+            ]
+        )
+    return [(path, issues) for path, issues in candidates if isinstance(issues, list)]
+
+
+def parse_rule_index(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    return None
+
+
+def resolve_near_miss_rule_id(rule_id: str, valid_rule_ids: set[str]) -> str | None:
+    """Resolve near-miss rule_id copy errors only when the match is unique."""
+    candidate = (rule_id or "").strip()
+    if not candidate:
+        return None
+    if candidate in valid_rule_ids:
+        return candidate
+    compact = candidate.replace("-", "").lower()
+    scored: list[tuple[float, str]] = []
+    for valid_rule_id in valid_rule_ids:
+        valid_compact = valid_rule_id.replace("-", "").lower()
+        if edit_distance_at_most_one(compact, valid_compact):
+            scored.append((1.0, valid_rule_id))
+            continue
+        prefix_len = common_prefix_len(compact, valid_compact)
+        ratio = SequenceMatcher(None, compact, valid_compact).ratio()
+        if prefix_len >= 24 and ratio >= 0.94:
+            scored.append((ratio, valid_rule_id))
+    if not scored:
+        return None
+    scored.sort(reverse=True)
+    if len(scored) == 1 or scored[0][0] > scored[1][0]:
+        return scored[0][1]
+    return None
+
+
+def common_prefix_len(left: str, right: str) -> int:
+    count = 0
+    for lchar, rchar in zip(left, right):
+        if lchar != rchar:
+            break
+        count += 1
+    return count
+
+
+def edit_distance_at_most_one(left: str, right: str) -> bool:
+    """True when two strings are identical or one insert/delete/substitute apart."""
+    if left == right:
+        return True
+    if abs(len(left) - len(right)) > 1:
+        return False
+    i = j = edits = 0
+    while i < len(left) and j < len(right):
+        if left[i] == right[j]:
+            i += 1
+            j += 1
+            continue
+        edits += 1
+        if edits > 1:
+            return False
+        if len(left) == len(right):
+            i += 1
+            j += 1
+        elif len(left) < len(right):
+            j += 1
+        else:
+            i += 1
+    if i < len(left) or j < len(right):
+        edits += 1
+    return edits <= 1
 
 
 def _combine_verdict(*analyses: dict[str, Any] | None) -> str:
